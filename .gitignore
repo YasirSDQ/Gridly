@@ -3,3 +3,9 @@ node_modules/
 dist/
 build/
 *.log
+rclone
+rclone.exe
+rclone.conf
+auth_output.txt
+test-auth*.js
+test-auth*.cjs

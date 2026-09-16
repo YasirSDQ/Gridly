@@ -9,25 +9,20 @@ export interface RcloneRCConfig {
 
 // Get current RC config from localStorage
 export function getRCConfig(): RcloneRCConfig {
-  try {
-    const data = localStorage.getItem('gridly_rc_config')
-    if (data) return JSON.parse(data)
-  } catch {}
   return {
-    url: 'http://localhost:5572',
+    url: '/api/rc',
     username: '',
     password: '',
   }
 }
 
 export function saveRCConfig(config: RcloneRCConfig): void {
-  localStorage.setItem('gridly_rc_config', JSON.stringify(config))
+  // no-op, managed by backend now
 }
 
 // Check if rclone RC is configured and reachable
 export function isRCConfigured(): boolean {
-  const config = getRCConfig()
-  return config.url.length > 0
+  return true
 }
 
 // Make RC API call
@@ -36,18 +31,10 @@ export async function rcCall<T = any>(
   params: Record<string, any> = {},
   configOverride?: RcloneRCConfig
 ): Promise<T> {
-  const config = configOverride || getRCConfig()
-  
-  const url = `${config.url.replace(/\/$/, '')}/${endpoint}`
+  const url = `/api/rc/${endpoint}`
   
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-  }
-  
-  // Add basic auth if configured
-  if (config.username && config.password) {
-    const credentials = btoa(`${config.username}:${config.password}`)
-    headers['Authorization'] = `Basic ${credentials}`
   }
 
   const response = await fetch(url, {

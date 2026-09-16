@@ -26,17 +26,13 @@ export default function TransferManager() {
   }
 
   const handleCancel = (transferId: string) => {
-    if (confirm('Are you sure you want to cancel this transfer?')) {
-      cancelTransfer(transferId)
-      addToast('warning', 'Transfer Cancelled', 'Transfer has been cancelled')
-    }
+    cancelTransfer(transferId)
+    addToast('warning', 'Transfer Cancelled', 'Transfer has been cancelled')
   }
 
   const handleDelete = (transferId: string) => {
-    if (confirm('Delete this transfer record?')) {
-      deleteTransfer(transferId)
-      addToast('info', 'Transfer Deleted', 'Transfer record has been removed')
-    }
+    deleteTransfer(transferId)
+    addToast('info', 'Transfer Deleted', 'Transfer record has been removed')
   }
 
   const handleStartNow = (transferId: string) => {

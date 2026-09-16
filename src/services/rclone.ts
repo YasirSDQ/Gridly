@@ -48,10 +48,13 @@ export async function browseFiles(
 ): Promise<{ files: DriveFile[]; path: { id: string; name: string }[] }> {
   const available = await isRcloneAvailable()
   
+  // rclone expects '' for the root directory, not 'root' or '/'
+  const rclonePath = (folderPath === 'root' || folderPath === '/') ? '' : folderPath;
+
   if (available) {
     try {
       const fs = `${account.rcloneRemote}:`
-      const result = await rcloneRC.listFiles(fs, folderPath, { recurse: false })
+      const result = await rcloneRC.listFiles(fs, rclonePath, { recurse: false })
       
       const files: DriveFile[] = (result.list || []).map(item => ({
         id: item.ID || item.Path || generateId(),
@@ -66,7 +69,7 @@ export async function browseFiles(
       }))
 
       // Build path breadcrumb
-      const pathParts = folderPath ? folderPath.split('/').filter(Boolean) : []
+      const pathParts = rclonePath ? rclonePath.split('/').filter(Boolean) : []
       const path = [
         { id: 'root', name: account.name },
         ...pathParts.map((part, i) => ({

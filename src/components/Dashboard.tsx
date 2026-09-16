@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 import { disconnectAccount, refreshAccountInfo } from '../services/auth'
 import { formatBytes, testRemote } from '../services/rclone'
@@ -5,17 +6,27 @@ import { storage } from '../services/storage'
 
 export default function Dashboard() {
   const { state, dispatch, addToast, setView } = useApp()
+  const [accountToDelete, setAccountToDelete] = useState<{id: string, name: string} | null>(null)
 
-  const handleDisconnect = async (accountId: string, accountName: string) => {
-    if (confirm(`Are you sure you want to disconnect "${accountName}"? This will remove the rclone remote configuration.`)) {
-      try {
-        await disconnectAccount(accountId)
-        dispatch({ type: 'REMOVE_ACCOUNT', payload: accountId })
-        addToast('info', 'Account Disconnected', `${accountName} has been removed from rclone`)
-      } catch (err: any) {
-        addToast('error', 'Disconnect Failed', err.message)
-      }
+  const handleDisconnect = (accountId: string, accountName: string) => {
+    setAccountToDelete({ id: accountId, name: accountName })
+  }
+
+  const confirmDisconnect = async () => {
+    if (!accountToDelete) return;
+    try {
+      await disconnectAccount(accountToDelete.id)
+      dispatch({ type: 'REMOVE_ACCOUNT', payload: accountToDelete.id })
+      addToast('info', 'Account Disconnected', `${accountToDelete.name} has been removed from rclone`)
+    } catch (err: any) {
+      addToast('error', 'Disconnect Failed', err.message)
+    } finally {
+      setAccountToDelete(null)
     }
+  }
+
+  const cancelDisconnect = () => {
+    setAccountToDelete(null)
   }
 
   const handleTestConnection = async (account: typeof state.accounts[0]) => {
@@ -250,6 +261,44 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Disconnect Confirmation Modal */}
+      {accountToDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={cancelDisconnect} />
+          <div className="relative w-full max-w-md glass-card rounded-2xl p-6 shadow-2xl animate-slide-up border border-red-500/20">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center text-red-400">
+                <i className="fa-solid fa-triangle-exclamation text-xl" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white">Disconnect Account</h3>
+                <p className="text-sm text-slate-400">Are you sure you want to remove this drive?</p>
+              </div>
+            </div>
+            
+            <p className="text-slate-300 text-sm mb-6">
+              This will remove <span className="font-bold text-white">"{accountToDelete.name}"</span> from your dashboard. Files on Google Drive will remain untouched.
+            </p>
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={cancelDisconnect}
+                className="px-4 py-2 rounded-xl bg-slate-800 text-white font-medium hover:bg-slate-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDisconnect}
+                className="px-4 py-2 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors flex items-center gap-2 shadow-lg shadow-red-500/20"
+              >
+                <i className="fa-solid fa-unlink" />
+                Disconnect Drive
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

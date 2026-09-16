@@ -60,12 +60,10 @@ export default function SettingsPanel() {
   }
 
   const handleClearAll = () => {
-    if (confirm('Are you sure you want to clear all data? This will remove all accounts and transfers.')) {
-      storage.clearAll()
-      dispatch({ type: 'SET_ACCOUNTS', payload: [] })
-      dispatch({ type: 'SET_TRANSFERS', payload: [] })
-      addToast('warning', 'Data Cleared', 'All accounts and transfers have been removed')
-    }
+    storage.clearAll()
+    dispatch({ type: 'SET_ACCOUNTS', payload: [] })
+    dispatch({ type: 'SET_TRANSFERS', payload: [] })
+    addToast('warning', 'Data Cleared', 'All accounts and transfers have been removed')
   }
 
   return (
