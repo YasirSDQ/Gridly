@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../context/AppContext'
 import { browseFiles, formatBytes } from '../services/rclone'
 import type { DriveFile } from '../types'
@@ -212,20 +213,38 @@ export default function MainContent() {
             </div>
           </div>
         ) : state.viewMode === 'grid' ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-            {filteredFiles.map(file => (
-              <FileCard
-                key={file.id}
-                file={file}
-                selected={state.selectedFiles.has(file.id)}
-                starred={state.starredFiles.has(file.id)}
-                onClick={(e) => handleFileClick(file, e)}
-                onContextMenu={(e) => handleContextMenu(e, file.id)}
-              />
-            ))}
-          </div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"
+          >
+            <AnimatePresence>
+              {filteredFiles.map((file, i) => (
+                <motion.div
+                  key={file.id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.2, delay: i * 0.02 }}
+                  layout
+                >
+                  <FileCard
+                    file={file}
+                    selected={state.selectedFiles.has(file.id)}
+                    starred={state.starredFiles.has(file.id)}
+                    onClick={(e) => handleFileClick(file, e)}
+                    onContextMenu={(e) => handleContextMenu(e, file.id)}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
         ) : (
-          <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden"
+          >
             <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs font-medium text-slate-500 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
               <div className="col-span-6">Name</div>
               <div className="col-span-2">Owner</div>
@@ -233,17 +252,27 @@ export default function MainContent() {
               <div className="col-span-1">Size</div>
               <div className="col-span-1"></div>
             </div>
-            {filteredFiles.map(file => (
-              <FileListItem
-                key={file.id}
-                file={file}
-                selected={state.selectedFiles.has(file.id)}
-                starred={state.starredFiles.has(file.id)}
-                onClick={(e) => handleFileClick(file, e)}
-                onContextMenu={(e) => handleContextMenu(e, file.id)}
-              />
-            ))}
-          </div>
+            <AnimatePresence>
+              {filteredFiles.map((file, i) => (
+                <motion.div
+                  key={file.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.2, delay: i * 0.02 }}
+                  layout
+                >
+                  <FileListItem
+                    file={file}
+                    selected={state.selectedFiles.has(file.id)}
+                    starred={state.starredFiles.has(file.id)}
+                    onClick={(e) => handleFileClick(file, e)}
+                    onContextMenu={(e) => handleContextMenu(e, file.id)}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
         )}
       </div>
     </main>
@@ -261,13 +290,15 @@ function FileCard({ file, selected, starred, onClick, onContextMenu }: {
   const { dispatch } = useApp()
 
   return (
-    <div
+    <motion.div
+      whileHover={{ y: -2, scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
       onClick={onClick}
       onContextMenu={onContextMenu}
       className={`group relative rounded-lg border transition-all cursor-pointer ${
         selected
-          ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700 ring-2 ring-blue-500/20'
-          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700'
+          ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-300 dark:border-indigo-700 ring-2 ring-indigo-500/20'
+          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:shadow-lg hover:border-indigo-300 dark:hover:border-indigo-700'
       }`}
     >
       {/* Preview Area */}
@@ -310,7 +341,7 @@ function FileCard({ file, selected, starred, onClick, onContextMenu }: {
           {file.isFolder ? 'Folder' : formatBytes(file.size)}
         </p>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -325,12 +356,13 @@ function FileListItem({ file, selected, starred, onClick, onContextMenu }: {
   const { dispatch } = useApp()
 
   return (
-    <div
+    <motion.div
+      whileHover={{ x: 2 }}
       onClick={onClick}
       onContextMenu={onContextMenu}
       className={`grid grid-cols-12 gap-2 px-4 py-2 items-center cursor-pointer transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0 ${
         selected
-          ? 'bg-blue-50 dark:bg-blue-900/20'
+          ? 'bg-indigo-50 dark:bg-indigo-900/20'
           : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
       }`}
     >
@@ -359,6 +391,6 @@ function FileListItem({ file, selected, starred, onClick, onContextMenu }: {
           <i className="fa-solid fa-ellipsis-vertical text-xs text-slate-500" />
         </button>
       </div>
-    </div>
+    </motion.div>
   )
 }

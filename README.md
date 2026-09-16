@@ -1,17 +1,31 @@
 # Gridly - Advanced Drive Manager
 
-A modern, full-featured Google Drive manager powered by **rclone**. Gridly provides a Google Drive-like interface for managing multiple Google Drive accounts with server-side file transfers.
+A modern, full-featured Google Drive manager powered by **rclone** with a stunning animated interface. Gridly provides a beautiful landing page, seamless account connection flow, and a Google Drive-like interface for managing multiple Google Drive accounts with server-side file transfers.
 
 ![Gridly](https://img.shields.io/badge/Gridly-v3.0-blue)
 ![rclone](https://img.shields.io/badge/rclone-1.60+-green)
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![Tailwind](https://img.shields.io/badge/Tailwind-4-06b6d4)
+![Framer Motion](https://img.shields.io/badge/Framer_Motion-11-ff0088)
 
 ## ✨ Features
 
-### 🎨 Modern Google Drive-like Interface
+### 🎨 Stunning Animated Landing Page
+- **Beautiful hero section** with animated gradients and floating elements
+- **Smooth transitions** between landing page and drive manager
+- **Interactive animations** powered by Framer Motion
+- **Modern glass-morphism** effects and neon glows
+- **Responsive design** that works on all devices
+
+### 🚀 Seamless Onboarding Flow
+1. **Landing Page** - Showcase features and benefits
+2. **Connect Account** - OAuth via rclone with animated modals
+3. **Drive Manager** - Full-featured file management interface
+4. **Smooth Transitions** - Animated page transitions with Framer Motion
+
+### 🎯 Google Drive-like Interface
 - **Sidebar navigation** with My Drive, Recent, Starred, Shared, Trash sections
-- **Grid and List views** for file browsing
+- **Grid and List views** with smooth animations
 - **Breadcrumb navigation** for easy folder traversal
 - **Details panel** showing file information, activity, and sharing
 - **Context menu** with right-click actions
@@ -29,7 +43,7 @@ A modern, full-featured Google Drive manager powered by **rclone**. Gridly provi
 
 ### 📁 File Management
 - Browse files and folders via rclone
-- Star/unstar files
+- Star/unstar files with animations
 - Rename files and folders
 - Create new folders
 - Copy, move, delete operations
@@ -42,6 +56,32 @@ A modern, full-featured Google Drive manager powered by **rclone**. Gridly provi
 - Pause/resume/cancel transfers
 - Transfer logs
 - Multiple concurrent transfers
+
+## 🎬 User Experience Flow
+
+### 1. Landing Page
+When you first open Gridly, you'll see a beautiful animated landing page with:
+- Animated gradient background with floating orbs
+- Hero section with compelling copy and CTA buttons
+- Feature cards with hover animations
+- Stats section showing key benefits
+- Smooth scroll animations
+
+### 2. Connect Account
+Click "Connect Your Drive" to:
+- Open an animated modal
+- Check rclone connection status
+- Enter remote name and configure scope
+- Complete OAuth in browser
+- See success animation
+
+### 3. Drive Manager
+After connecting, smoothly transition to:
+- Full drive manager interface
+- Animated sidebar with navigation
+- File browser with grid/list views
+- Real-time file operations
+- Transfer monitoring
 
 ## 🚀 Quick Start
 
@@ -74,20 +114,42 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173)
 
-### 4. Connect Your Account
+### 4. Experience the Flow
+1. **See the landing page** with beautiful animations
+2. **Click "Connect Your Drive"** to start onboarding
+3. **Complete OAuth** in the browser
+4. **Watch the smooth transition** to the drive manager
+5. **Start managing** your Google Drive files!
 
-1. Click the account avatar in the top-right
-2. Select "Add another account"
-3. Enter a remote name (e.g., `mydrive`)
-4. Complete OAuth in the browser window that opens
-5. Your account is now connected!
+## 🎨 Design Highlights
+
+### Animations
+- **Page transitions** - Smooth fade and scale animations between views
+- **Staggered animations** - Elements animate in sequence for visual flow
+- **Hover effects** - Interactive hover states with scale and shadow changes
+- **Loading states** - Animated spinners and progress bars
+- **Micro-interactions** - Button presses, toggles, and selections
+
+### Visual Design
+- **Gradient backgrounds** - Beautiful indigo to purple gradients
+- **Glass-morphism** - Frosted glass effects with backdrop blur
+- **Neon glows** - Subtle glowing effects on important elements
+- **Modern typography** - Clean, readable fonts with proper hierarchy
+- **Color system** - Consistent color palette with semantic meaning
+
+### UX Patterns
+- **Progressive disclosure** - Show information when needed
+- **Keyboard shortcuts** - Power user support (⌘K for search)
+- **Contextual actions** - Right-click menus for quick operations
+- **Visual feedback** - Every action has clear visual response
+- **Accessibility** - Proper focus states and ARIA labels
 
 ## 🏗️ Architecture
 
 ```
 ┌─────────────────┐
-│   Gridly UI     │  React + Tailwind CSS
-│   (Browser)     │  Google Drive-like interface
+│   Gridly UI     │  React + Tailwind + Framer Motion
+│   (Browser)     │  Animated, modern interface
 └────────┬────────┘
          │ HTTP API (JSON)
          ▼
@@ -189,6 +251,11 @@ rclone rcd --rc-addr=localhost:5572
 - Verify both accounts are connected
 - Check Google Drive API quotas
 
+### Animations not working
+- Check browser console for errors
+- Ensure Framer Motion is installed: `npm install framer-motion`
+- Try clearing browser cache
+
 ## 📝 Environment Variables
 
 | Variable | Description | Default |
@@ -197,11 +264,32 @@ rclone rcd --rc-addr=localhost:5572
 | `VITE_RCLONE_USERNAME` | rclone RC username | (empty) |
 | `VITE_RCLONE_PASSWORD` | rclone RC password | (empty) |
 
+## 🎨 Customization
+
+### Colors
+Edit `src/index.css` to customize the color scheme:
+```css
+.bg-gradient-to-br {
+  background: linear-gradient(to bottom right, var(--tw-gradient-stops));
+}
+```
+
+### Animations
+Modify animation durations and easing in component files:
+```tsx
+<motion.div
+  initial={{ opacity: 0 }}
+  animate={{ opacity: 1 }}
+  transition={{ duration: 0.5 }}
+>
+```
+
 ## 🙏 Acknowledgments
 
 - [rclone](https://rclone.org/) - The swiss army knife of cloud storage
 - [React](https://reactjs.org/) - UI library
 - [Tailwind CSS](https://tailwindcss.com/) - CSS framework
+- [Framer Motion](https://www.framer.com/motion/) - Animation library
 - [Font Awesome](https://fontawesome.com/) - Icons
 
 ## 📄 License
@@ -210,4 +298,6 @@ MIT License
 
 ---
 
-**Built with ❤️ using React, TypeScript, Tailwind CSS, and rclone**
+**Built with ❤️ using React, TypeScript, Tailwind CSS, Framer Motion, and rclone**
+
+Experience the future of cloud storage management with Gridly!
