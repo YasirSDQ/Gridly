@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext'
+import { isOAuthConfigured } from '../services/auth'
 import type { ViewMode } from '../types'
 
 export default function Header() {
@@ -60,9 +61,19 @@ export default function Header() {
 
           {/* Status & Actions */}
           <div className="hidden md:flex items-center gap-4">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-              <span className="text-xs text-green-400 font-medium">rclone v1.65</span>
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${
+              isOAuthConfigured() 
+                ? 'bg-green-500/10 border-green-500/20' 
+                : 'bg-yellow-500/10 border-yellow-500/20'
+            }`}>
+              <div className={`w-2 h-2 rounded-full animate-pulse ${
+                isOAuthConfigured() ? 'bg-green-400' : 'bg-yellow-400'
+              }`} />
+              <span className={`text-xs font-medium ${
+                isOAuthConfigured() ? 'text-green-400' : 'text-yellow-400'
+              }`}>
+                {isOAuthConfigured() ? 'OAuth Active' : 'Demo Mode'}
+              </span>
             </div>
             {state.accounts.length > 0 && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20">

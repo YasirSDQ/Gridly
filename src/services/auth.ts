@@ -1,22 +1,8 @@
-// Authentication service - Simulates Google OAuth2 flow
+// Real Google OAuth2 authentication service
 import type { DriveAccount } from '../types'
 import { storage, generateId } from './storage'
-
-// Simulated Google OAuth2 endpoints
-const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
-const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
-const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo'
-
-// In production, these would be real values
-const CLIENT_ID = 'gridly-app-client-id'
-const REDIRECT_URI = window.location.origin + '/auth/callback'
-const SCOPES = [
-  'https://www.googleapis.com/auth/drive',
-  'https://www.googleapis.com/auth/drive.metadata.readonly',
-  'openid',
-  'email',
-  'profile',
-]
+import { GOOGLE_CONFIG, isOAuthConfigured } from '../config/google'
+import { getUserInfo, getDriveStorageInfo } from './googleDrive'
 
 export interface OAuthState {
   codeVerifier: string
@@ -24,7 +10,7 @@ export interface OAuthState {
   timestamp: number
 }
 
-// Generate PKCE code verifier and challenge
+// Generate PKCE code verifier
 function generateCodeVerifier(): string {
   const array = new Uint8Array(32)
   crypto.getRandomValues(array)
@@ -34,6 +20,7 @@ function generateCodeVerifier(): string {
     .replace(/=/g, '')
 }
 
+// Generate PKCE code challenge
 async function generateCodeChallenge(verifier: string): Promise<string> {
   const encoder = new TextEncoder()
   const data = encoder.encode(verifier)
@@ -44,8 +31,12 @@ async function generateCodeChallenge(verifier: string): Promise<string> {
     .replace(/=/g, '')
 }
 
-// Start OAuth flow
-export async function startOAuthFlow(): Promise<{ authUrl: string; state: OAuthState }> {
+// Start OAuth flow - redirects to Google
+export async function startOAuthFlow(): Promise<void> {
+  if (!isOAuthConfigured()) {
+    throw new Error('Google OAuth not configured. Please set VITE_GOOGLE_CLIENT_ID in .env file. See SETUP_GUIDE.md for instructions.')
+  }
+
   const codeVerifier = generateCodeVerifier()
   const codeChallenge = await generateCodeChallenge(codeVerifier)
   const state = generateId()
@@ -60,75 +51,130 @@ export async function startOAuthFlow(): Promise<{ authUrl: string; state: OAuthS
   sessionStorage.setItem('gridly_oauth_state', JSON.stringify(oauthState))
 
   const params = new URLSearchParams({
-    client_id: CLIENT_ID,
-    redirect_uri: REDIRECT_URI,
+    client_id: GOOGLE_CONFIG.CLIENT_ID,
+    redirect_uri: GOOGLE_CONFIG.REDIRECT_URI,
     response_type: 'code',
-    scope: SCOPES.join(' '),
+    scope: GOOGLE_CONFIG.SCOPES.join(' '),
     state,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
     access_type: 'offline',
     prompt: 'consent',
+    include_granted_scopes: 'true',
   })
 
-  const authUrl = `${GOOGLE_AUTH_URL}?${params.toString()}`
+  // Redirect to Google OAuth
+  window.location.href = `${GOOGLE_CONFIG.AUTH_URL}?${params.toString()}`
+}
 
-  return { authUrl, state: oauthState }
+// Handle OAuth callback
+export async function handleOAuthCallback(): Promise<DriveAccount | null> {
+  const urlParams = new URLSearchParams(window.location.search)
+  const code = urlParams.get('code')
+  const state = urlParams.get('state')
+  const error = urlParams.get('error')
+
+  // Check for errors
+  if (error) {
+    throw new Error(`OAuth error: ${error} - ${urlParams.get('error_description')}`)
+  }
+
+  if (!code || !state) {
+    return null
+  }
+
+  // Verify state
+  const storedState = sessionStorage.getItem('gridly_oauth_state')
+  if (!storedState) {
+    throw new Error('OAuth state not found. Please try again.')
+  }
+
+  const oauthState: OAuthState = JSON.parse(storedState)
+  
+  if (oauthState.state !== state) {
+    throw new Error('OAuth state mismatch. Possible CSRF attack.')
+  }
+
+  // Check if state is too old (5 minutes)
+  if (Date.now() - oauthState.timestamp > 5 * 60 * 1000) {
+    throw new Error('OAuth state expired. Please try again.')
+  }
+
+  // Exchange code for tokens
+  const tokens = await exchangeCodeForTokens(code, oauthState.codeVerifier)
+
+  // Get user info
+  const userInfo = await getUserInfo(tokens.accessToken)
+
+  // Get storage info
+  const storageInfo = await getDriveStorageInfo(tokens.accessToken)
+
+  // Create account
+  const account: DriveAccount = {
+    id: generateId(),
+    name: userInfo.name + "'s Drive",
+    email: userInfo.email,
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+    tokenExpiry: Date.now() + tokens.expiresIn * 1000,
+    avatar: userInfo.picture,
+    usedBytes: storageInfo.usedBytes,
+    totalBytes: storageInfo.totalBytes,
+    fileCount: 0, // Will be updated on first browse
+    folderCount: 0,
+    rcloneRemote: `gdrive_${userInfo.email.split('@')[0].replace(/[^a-z0-9]/g, '')}`,
+    status: 'connected',
+    addedAt: Date.now(),
+    lastSynced: Date.now(),
+  }
+
+  // Save account
+  storage.addAccount(account)
+
+  // Clean up
+  sessionStorage.removeItem('gridly_oauth_state')
+  
+  // Clean URL
+  window.history.replaceState({}, document.title, window.location.pathname)
+
+  return account
 }
 
 // Exchange authorization code for tokens
-export async function exchangeCodeForTokens(
+async function exchangeCodeForTokens(
   code: string,
   codeVerifier: string
-): Promise<{ accessToken: string; refreshToken: string; expiresIn: number }> {
-  // In production, this would be a real API call
-  // For demo, we simulate the token exchange
-  await simulateNetworkDelay(800)
+): Promise<{
+  accessToken: string
+  refreshToken: string
+  expiresIn: number
+}> {
+  const response = await fetch(GOOGLE_CONFIG.TOKEN_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      code,
+      client_id: GOOGLE_CONFIG.CLIENT_ID,
+      redirect_uri: GOOGLE_CONFIG.REDIRECT_URI,
+      grant_type: 'authorization_code',
+      code_verifier: codeVerifier,
+    }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(`Token exchange failed: ${error.error_description || error.error}`)
+  }
+
+  const data = await response.json()
 
   return {
-    accessToken: `ya29.${generateId()}_${generateId()}`,
-    refreshToken: `1//${generateId()}_${generateId()}`,
-    expiresIn: 3600,
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+    expiresIn: data.expires_in,
   }
-}
-
-// Get user info from Google
-export async function getUserInfo(accessToken: string): Promise<{
-  email: string
-  name: string
-  picture: string
-  sub: string
-}> {
-  // Simulate API call
-  await simulateNetworkDelay(500)
-
-  // In production: fetch(GOOGLE_USERINFO_URL, { headers: { Authorization: `Bearer ${accessToken}` } })
-  const names = ['Alex Chen', 'Sarah Miller', 'James Wilson', 'Emma Davis', 'Michael Brown']
-  const name = names[Math.floor(Math.random() * names.length)]
-  const email = name.toLowerCase().replace(' ', '.') + '@gmail.com'
-
-  return {
-    email,
-    name,
-    picture: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6366f1&color=fff&size=128`,
-    sub: generateId(),
-  }
-}
-
-// Get drive storage info
-export async function getDriveStorageInfo(accessToken: string): Promise<{
-  usedBytes: number
-  totalBytes: number
-}> {
-  await simulateNetworkDelay(400)
-
-  // Simulate different storage amounts
-  const totalBytes = [15 * 1024 * 1024 * 1024, 100 * 1024 * 1024 * 1024, 2 * 1024 * 1024 * 1024 * 1024][
-    Math.floor(Math.random() * 3)
-  ]
-  const usedBytes = Math.floor(totalBytes * (0.1 + Math.random() * 0.8))
-
-  return { usedBytes, totalBytes }
 }
 
 // Refresh access token
@@ -136,53 +182,54 @@ export async function refreshAccessToken(refreshToken: string): Promise<{
   accessToken: string
   expiresIn: number
 }> {
-  await simulateNetworkDelay(300)
+  const response = await fetch(GOOGLE_CONFIG.TOKEN_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      client_id: GOOGLE_CONFIG.CLIENT_ID,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(`Token refresh failed: ${error.error_description || error.error}`)
+  }
+
+  const data = await response.json()
 
   return {
-    accessToken: `ya29.refreshed.${generateId()}`,
-    expiresIn: 3600,
+    accessToken: data.access_token,
+    expiresIn: data.expires_in,
   }
 }
 
-// Connect a new Google Drive account (simulated full flow)
-export async function connectGoogleAccount(
-  email?: string,
-  name?: string
-): Promise<DriveAccount> {
-  // Simulate OAuth flow
-  await simulateNetworkDelay(1500)
+// Check if token needs refresh
+export function isTokenExpired(account: DriveAccount): boolean {
+  return Date.now() >= account.tokenExpiry - 5 * 60 * 1000 // 5 min buffer
+}
 
-  const userInfo = email
-    ? {
-        email,
-        name: name || email.split('@')[0],
-        picture: `https://ui-avatars.com/api/?name=${encodeURIComponent(name || email)}&background=6366f1&color=fff&size=128`,
-        sub: generateId(),
-      }
-    : await getUserInfo('mock-token')
+// Ensure valid token
+export async function ensureValidToken(account: DriveAccount): Promise<DriveAccount> {
+  if (!isTokenExpired(account)) return account
 
-  const storageInfo = await getDriveStorageInfo('mock-token')
-
-  const account: DriveAccount = {
-    id: generateId(),
-    name: userInfo.name + "'s Drive",
-    email: userInfo.email,
-    accessToken: `ya29.${generateId()}`,
-    refreshToken: `1//${generateId()}`,
-    tokenExpiry: Date.now() + 3600 * 1000,
-    avatar: userInfo.picture,
-    usedBytes: storageInfo.usedBytes,
-    totalBytes: storageInfo.totalBytes,
-    fileCount: Math.floor(Math.random() * 50000) + 100,
-    folderCount: Math.floor(Math.random() * 5000) + 50,
-    rcloneRemote: `gdrive_${userInfo.email.split('@')[0].replace(/[^a-z0-9]/g, '')}`,
-    status: 'connected',
-    addedAt: Date.now(),
-    lastSynced: null,
+  try {
+    const result = await refreshAccessToken(account.refreshToken)
+    const updated = {
+      ...account,
+      accessToken: result.accessToken,
+      tokenExpiry: Date.now() + result.expiresIn * 1000,
+    }
+    storage.updateAccount(account.id, updated)
+    return updated
+  } catch (error) {
+    // If refresh fails, mark account as disconnected
+    storage.updateAccount(account.id, { status: 'disconnected' })
+    throw new Error('Failed to refresh token. Please reconnect your account.')
   }
-
-  storage.addAccount(account)
-  return account
 }
 
 // Disconnect account
@@ -190,30 +237,10 @@ export function disconnectAccount(accountId: string): void {
   storage.removeAccount(accountId)
 }
 
-// Check if token needs refresh
-export function isTokenExpired(account: DriveAccount): boolean {
-  return Date.now() >= account.tokenExpiry - 300000 // 5 min buffer
-}
-
-// Refresh token if needed
-export async function ensureValidToken(account: DriveAccount): Promise<DriveAccount> {
-  if (!isTokenExpired(account)) return account
-
-  const result = await refreshAccessToken(account.refreshToken)
-  const updated = {
-    ...account,
-    accessToken: result.accessToken,
-    tokenExpiry: Date.now() + result.expiresIn * 1000,
-  }
-  storage.updateAccount(account.id, updated)
-  return updated
-}
-
-function simulateNetworkDelay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
-
 // Validate email format
 export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
+
+// Check if OAuth is configured
+export { isOAuthConfigured }

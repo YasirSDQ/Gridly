@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 import { storage } from '../services/storage'
+import { generateRcloneConfig, isOAuthConfigured } from '../services/rclone'
 import type { RcloneConfig } from '../types'
 
 export default function SettingsPanel() {
@@ -222,6 +223,55 @@ export default function SettingsPanel() {
                   placeholder="/var/log/rclone.log"
                 />
               </div>
+            </div>
+          </div>
+
+          {/* rclone Config Export */}
+          <div className="p-6 rounded-2xl glass-card">
+            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <i className="fa-solid fa-file-export text-purple-400" />
+              rclone Configuration
+            </h3>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/30">
+                <div className={`w-2 h-2 rounded-full mt-1.5 ${isOAuthConfigured() ? 'bg-green-400' : 'bg-yellow-400'}`} />
+                <div>
+                  <p className="text-sm text-white font-medium">
+                    {isOAuthConfigured() ? 'OAuth Configured' : 'OAuth Not Configured'}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {isOAuthConfigured()
+                      ? 'Real Google Drive API calls are active'
+                      : 'Using demo mode. Configure OAuth for real accounts.'}
+                  </p>
+                </div>
+              </div>
+
+              {state.accounts.length > 0 && (
+                <>
+                  <button
+                    onClick={() => {
+                      const configText = generateRcloneConfig()
+                      navigator.clipboard.writeText(configText)
+                      addToast('success', 'Copied!', 'rclone config copied to clipboard')
+                    }}
+                    className="w-full px-4 py-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-sm font-medium hover:bg-indigo-500/20 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <i className="fa-solid fa-copy" />
+                    Copy rclone Config to Clipboard
+                  </button>
+
+                  <details className="group">
+                    <summary className="text-xs text-slate-400 cursor-pointer hover:text-white">
+                      <i className="fa-solid fa-chevron-right mr-1 group-open:rotate-90 transition-transform" />
+                      Preview generated config
+                    </summary>
+                    <pre className="mt-2 p-3 rounded-lg bg-slate-900/80 text-xs text-slate-400 overflow-x-auto whitespace-pre-wrap font-mono max-h-48 overflow-y-auto">
+                      {generateRcloneConfig()}
+                    </pre>
+                  </details>
+                </>
+              )}
             </div>
           </div>
 

@@ -11,7 +11,7 @@ export default function Hero() {
           <div className="animate-slide-up">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 mb-6">
               <i className="fa-solid fa-bolt text-yellow-400 text-xs" />
-              <span className="text-sm text-indigo-300 font-medium">Powered by rclone Engine v1.65</span>
+              <span className="text-sm text-indigo-300 font-medium">Real OAuth 2.0 + rclone Engine</span>
             </div>
             
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-tight mb-6">

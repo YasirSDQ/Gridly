@@ -6,8 +6,8 @@ export default function TransferModal() {
   const { state, dispatch, addToast } = useApp()
   const [sourceId, setSourceId] = useState('')
   const [destId, setDestId] = useState('')
-  const [sourcePath, setSourcePath] = useState('/')
-  const [destPath, setDestPath] = useState('/')
+  const [sourcePath, setSourcePath] = useState('root')
+  const [destPath, setDestPath] = useState('root')
   const [operation, setOperation] = useState<'copy' | 'move' | 'sync'>('copy')
   const [flags, setFlags] = useState<string[]>([])
   const [creating, setCreating] = useState(false)
@@ -18,8 +18,8 @@ export default function TransferModal() {
     dispatch({ type: 'SET_TRANSFER_MODAL', payload: false })
     setSourceId('')
     setDestId('')
-    setSourcePath('/')
-    setDestPath('/')
+    setSourcePath('root')
+    setDestPath('root')
     setOperation('copy')
     setFlags([])
   }
@@ -130,7 +130,7 @@ export default function TransferModal() {
               type="text"
               value={sourcePath}
               onChange={(e) => setSourcePath(e.target.value)}
-              placeholder="/path/to/source/folder"
+              placeholder="root or folder ID"
               className="w-full mt-2 px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/50 text-white text-sm focus:outline-none focus:border-indigo-500/50 transition-colors font-mono placeholder:text-slate-600"
             />
           </div>
@@ -155,7 +155,7 @@ export default function TransferModal() {
               type="text"
               value={destPath}
               onChange={(e) => setDestPath(e.target.value)}
-              placeholder="/path/to/destination/folder"
+              placeholder="root or folder ID"
               className="w-full mt-2 px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/50 text-white text-sm focus:outline-none focus:border-indigo-500/50 transition-colors font-mono placeholder:text-slate-600"
             />
           </div>

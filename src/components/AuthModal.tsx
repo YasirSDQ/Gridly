@@ -1,51 +1,26 @@
-import { useState } from 'react'
 import { useApp } from '../context/AppContext'
-import { connectGoogleAccount, isValidEmail } from '../services/auth'
+import { startOAuthFlow, isOAuthConfigured } from '../services/auth'
+import { getSetupInstructions } from '../config/google'
 
 export default function AuthModal() {
   const { state, dispatch, addToast } = useApp()
-  const [step, setStep] = useState<'form' | 'connecting' | 'success'>('form')
-  const [email, setEmail] = useState('')
-  const [name, setName] = useState('')
-  const [error, setError] = useState('')
 
   if (!state.authModalOpen) return null
 
   const handleConnect = async () => {
-    if (!email || !isValidEmail(email)) {
-      setError('Please enter a valid email address')
-      return
-    }
-
-    setError('')
-    setStep('connecting')
-
     try {
-      const account = await connectGoogleAccount(email, name)
-      dispatch({ type: 'ADD_ACCOUNT', payload: account })
-      setStep('success')
-      addToast('success', 'Account Connected', `${account.email} has been added successfully`)
-
-      setTimeout(() => {
-        dispatch({ type: 'SET_AUTH_MODAL', payload: false })
-        setStep('form')
-        setEmail('')
-        setName('')
-      }, 1500)
-    } catch (err) {
-      setStep('form')
-      setError('Failed to connect account. Please try again.')
-      addToast('error', 'Connection Failed', 'Could not authenticate with Google')
+      await startOAuthFlow()
+      // Page will redirect to Google OAuth
+    } catch (err: any) {
+      addToast('error', 'Authentication Failed', err.message)
     }
   }
 
   const handleClose = () => {
     dispatch({ type: 'SET_AUTH_MODAL', payload: false })
-    setStep('form')
-    setEmail('')
-    setName('')
-    setError('')
   }
+
+  const configured = isOAuthConfigured()
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
@@ -58,25 +33,23 @@ export default function AuthModal() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h3 className="text-xl font-bold text-white">Connect Google Drive</h3>
-            <p className="text-sm text-slate-400 mt-1">Authenticate with OAuth 2.0</p>
+            <p className="text-sm text-slate-400 mt-1">Real OAuth 2.0 Authentication</p>
           </div>
           <button onClick={handleClose} className="p-2 rounded-lg hover:bg-white/5 text-slate-400 hover:text-white transition-colors">
             <i className="fa-solid fa-xmark text-lg" />
           </button>
         </div>
 
-        {/* Steps */}
-        {step === 'form' && (
+        {configured ? (
           <div className="space-y-4">
             {/* OAuth Info */}
             <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
               <div className="flex items-start gap-3">
                 <i className="fa-solid fa-shield-halved text-indigo-400 mt-0.5" />
                 <div>
-                  <p className="text-sm text-white font-medium">Secure OAuth 2.0 Authentication</p>
+                  <p className="text-sm text-white font-medium">Secure OAuth 2.0 with PKCE</p>
                   <p className="text-xs text-slate-400 mt-1">
-                    Gridly uses Google's OAuth 2.0 with PKCE for secure authentication. 
-                    Your credentials are never stored on our servers.
+                    You'll be redirected to Google to authenticate. Your credentials are never stored on our servers.
                   </p>
                 </div>
               </div>
@@ -100,38 +73,11 @@ export default function AuthModal() {
               </div>
             </div>
 
-            {/* Form */}
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm text-slate-400 mb-1.5 block">Google Email *</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your.email@gmail.com"
-                  className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/50 text-white text-sm focus:outline-none focus:border-indigo-500/50 transition-colors placeholder:text-slate-600"
-                />
-              </div>
-              <div>
-                <label className="text-sm text-slate-400 mb-1.5 block">Display Name (optional)</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="My Drive"
-                  className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/50 text-white text-sm focus:outline-none focus:border-indigo-500/50 transition-colors placeholder:text-slate-600"
-                />
-              </div>
+            {/* Redirect URI Info */}
+            <div className="p-3 rounded-lg bg-slate-800/30 border border-slate-700/30">
+              <p className="text-xs text-slate-500 mb-1">Redirect URI:</p>
+              <p className="text-xs text-cyan-400 font-mono break-all">{window.location.origin}/auth/callback</p>
             </div>
-
-            {error && (
-              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-                <p className="text-xs text-red-400 flex items-center gap-2">
-                  <i className="fa-solid fa-exclamation-circle" />
-                  {error}
-                </p>
-              </div>
-            )}
 
             {/* Connect Button */}
             <button
@@ -146,38 +92,55 @@ export default function AuthModal() {
               By connecting, you agree to our Terms of Service and Privacy Policy
             </p>
           </div>
-        )}
-
-        {step === 'connecting' && (
-          <div className="py-8 text-center">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-500/20 flex items-center justify-center">
-              <i className="fa-solid fa-spinner fa-spin text-indigo-400 text-2xl" />
-            </div>
-            <h4 className="text-lg font-semibold text-white mb-2">Connecting...</h4>
-            <p className="text-sm text-slate-400">Authenticating with Google and setting up rclone remote</p>
-            <div className="mt-4 space-y-2">
-              {['Generating OAuth tokens', 'Configuring rclone remote', 'Fetching drive info'].map((step, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs text-slate-500">
-                  <i className="fa-solid fa-spinner fa-spin text-indigo-400" />
-                  {step}
+        ) : (
+          <div className="space-y-4">
+            {/* Not Configured Warning */}
+            <div className="p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+              <div className="flex items-start gap-3">
+                <i className="fa-solid fa-exclamation-triangle text-yellow-400 mt-0.5" />
+                <div>
+                  <p className="text-sm text-white font-medium">OAuth Not Configured</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Google OAuth Client ID is not set. You need to configure it to use real authentication.
+                  </p>
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
-        )}
 
-        {step === 'success' && (
-          <div className="py-8 text-center">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-500/20 flex items-center justify-center">
-              <i className="fa-solid fa-check text-green-400 text-2xl" />
+            {/* Setup Instructions */}
+            <div className="p-4 rounded-xl bg-slate-800/30 border border-slate-700/30">
+              <p className="text-sm text-white font-medium mb-2">Quick Setup:</p>
+              <ol className="text-xs text-slate-400 space-y-1.5 list-decimal list-inside">
+                <li>Go to <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">Google Cloud Console</a></li>
+                <li>Create a project & enable Drive API</li>
+                <li>Create OAuth 2.0 credentials</li>
+                <li>Add redirect URI: <code className="text-cyan-400">{window.location.origin}/auth/callback</code></li>
+                <li>Copy Client ID to <code className="text-cyan-400">.env</code> file</li>
+              </ol>
             </div>
-            <h4 className="text-lg font-semibold text-white mb-2">Connected Successfully!</h4>
-            <p className="text-sm text-slate-400">Your Google Drive account is now linked to Gridly</p>
-            <div className="mt-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-              <p className="text-xs text-green-400 font-mono">
-                rclone remote configured: gdrive_{email.split('@')[0]}
-              </p>
-            </div>
+
+            {/* Full Instructions */}
+            <details className="group">
+              <summary className="text-xs text-indigo-400 cursor-pointer hover:text-indigo-300">
+                <i className="fa-solid fa-chevron-right mr-1 group-open:rotate-90 transition-transform" />
+                Show full instructions
+              </summary>
+              <pre className="mt-2 p-3 rounded-lg bg-slate-900/80 text-xs text-slate-400 overflow-x-auto whitespace-pre-wrap font-mono max-h-48 overflow-y-auto">
+                {getSetupInstructions()}
+              </pre>
+            </details>
+
+            {/* Demo Mode Button */}
+            <button
+              onClick={() => {
+                addToast('info', 'Demo Mode', 'Using simulated authentication. Configure OAuth for real accounts.')
+                handleClose()
+              }}
+              className="w-full py-3 rounded-xl bg-slate-800/50 border border-slate-700/50 text-slate-400 font-medium hover:text-white transition-colors flex items-center justify-center gap-2"
+            >
+              <i className="fa-solid fa-flask" />
+              Continue in Demo Mode
+            </button>
           </div>
         )}
       </div>

@@ -3,7 +3,7 @@ export default function HowItWorks() {
     {
       number: '01',
       title: 'Connect Your Accounts',
-      description: 'Securely authenticate your Google Drive accounts using OAuth 2.0. Add as many accounts as you need.',
+      description: 'Authenticate with real Google OAuth 2.0 + PKCE. Your credentials are never stored on our servers.',
       icon: 'fa-link',
       color: 'from-blue-500 to-cyan-500',
     },
@@ -114,13 +114,16 @@ export default function HowItWorks() {
                 <span className="text-xs text-slate-500 ml-2">rclone terminal</span>
               </div>
               <div className="space-y-2 text-xs sm:text-sm">
-                <p className="text-green-400">$ rclone copy gdrive_src:Projects/ gdrive_dst:Backup/</p>
-                <p className="text-slate-400">Transferred: <span className="text-cyan-400">4.2 GB</span> (Server-side)</p>
+                <p className="text-slate-500"># Real Google OAuth2 + rclone</p>
+                <p className="text-green-400">$ rclone copy gdrive_src:Projects/ gdrive_dst:Backup/ \</p>
+                <p className="text-green-400 ml-4">--drive-server-side-across-configs \</p>
+                <p className="text-green-400 ml-4">--drive-use-trash -P --stats 1s</p>
+                <p className="text-slate-400 mt-2">Transferred: <span className="text-cyan-400">4.2 GB</span> (Server-side)</p>
                 <p className="text-slate-400">Checks: <span className="text-green-400">1,247 / 1,247</span>, 100%</p>
                 <p className="text-slate-400">Transferred: <span className="text-green-400">1,247 files</span></p>
                 <p className="text-slate-400">Elapsed time: <span className="text-purple-400">12.3s</span></p>
                 <p className="text-slate-400">Speed: <span className="text-yellow-400">341.5 MB/s</span></p>
-                <p className="text-green-400 mt-2">✓ Transfer complete — verified</p>
+                <p className="text-green-400 mt-2">✓ Transfer complete — verified via Google API</p>
               </div>
             </div>
           </div>

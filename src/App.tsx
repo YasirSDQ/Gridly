@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import { AppProvider, useApp } from './context/AppContext'
+import { storage } from './services/storage'
 import Header from './components/Header'
 import Hero from './components/Hero'
 import Features from './components/Features'
@@ -13,7 +15,29 @@ import Toast from './components/Toast'
 import Footer from './components/Footer'
 
 function AppContent() {
-  const { state, setView } = useApp()
+  const { state, setView, addToast, dispatch } = useApp()
+
+  // Check for OAuth callback results
+  useEffect(() => {
+    const successData = sessionStorage.getItem('gridly_auth_success')
+    const errorData = sessionStorage.getItem('gridly_auth_error')
+
+    if (successData) {
+      const { email, name } = JSON.parse(successData)
+      addToast('success', 'Account Connected!', `${name} (${email}) has been added successfully`)
+      sessionStorage.removeItem('gridly_auth_success')
+      setView('dashboard')
+    }
+
+    if (errorData) {
+      addToast('error', 'Authentication Failed', errorData)
+      sessionStorage.removeItem('gridly_auth_error')
+    }
+
+    // Reload accounts from storage (in case they were added during callback)
+    const accounts = storage.getAccounts()
+    dispatch({ type: 'SET_ACCOUNTS', payload: accounts })
+  }, [])
 
   return (
     <div className="min-h-screen bg-slate-950 text-white overflow-x-hidden">

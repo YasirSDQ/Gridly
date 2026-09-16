@@ -6,6 +6,7 @@ import type { DriveFile } from '../types'
 export default function FileBrowser() {
   const { state, dispatch, addToast } = useApp()
   const [files, setFiles] = useState<DriveFile[]>([])
+  const [path, setPath] = useState<{ id: string; name: string }[]>([{ id: 'root', name: 'My Drive' }])
   const [loading, setLoading] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'size' | 'date'>('name')
@@ -15,16 +16,17 @@ export default function FileBrowser() {
 
   useEffect(() => {
     if (state.browserAccountId) {
-      loadFiles()
+      loadFiles(state.browserPath || 'root')
     }
   }, [state.browserAccountId, state.browserPath])
 
-  const loadFiles = async () => {
+  const loadFiles = async (folderId: string = 'root') => {
     if (!account) return
     setLoading(true)
     try {
-      const result = await browseFiles(account, state.browserPath)
-      setFiles(result)
+      const result = await browseFiles(account, folderId)
+      setFiles(result.files)
+      setPath(result.path)
     } catch {
       addToast('error', 'Browse Failed', 'Could not load files from this account')
     } finally {
@@ -32,16 +34,28 @@ export default function FileBrowser() {
     }
   }
 
-  const navigateToFolder = (path: string) => {
-    dispatch({ type: 'SET_BROWSER', payload: { accountId: state.browserAccountId, path } })
+  const navigateToFolder = (folderId: string, folderName?: string) => {
+    const newPath = folderId === 'root' 
+      ? [{ id: 'root', name: 'My Drive' }]
+      : [...path, { id: folderId, name: folderName || folderId }]
+    setPath(newPath)
+    dispatch({ type: 'SET_BROWSER', payload: { accountId: state.browserAccountId, path: folderId } })
     setSelectedFiles(new Set())
+    loadFiles(folderId)
+  }
+
+  const navigateToPathIndex = (index: number) => {
+    const targetPath = path.slice(0, index + 1)
+    setPath(targetPath)
+    const folderId = targetPath[targetPath.length - 1].id
+    dispatch({ type: 'SET_BROWSER', payload: { accountId: state.browserAccountId, path: folderId } })
+    setSelectedFiles(new Set())
+    loadFiles(folderId)
   }
 
   const goUp = () => {
-    const parts = state.browserPath.split('/').filter(Boolean)
-    parts.pop()
-    const newPath = '/' + parts.join('/')
-    navigateToFolder(newPath === '/' ? '/' : newPath)
+    if (path.length <= 1) return
+    navigateToPathIndex(path.length - 2)
   }
 
   const toggleFileSelection = (fileId: string) => {
@@ -71,7 +85,6 @@ export default function FileBrowser() {
   }
 
   const sortedFiles = [...files].sort((a, b) => {
-    // Folders first
     if (a.isFolder && !b.isFolder) return -1
     if (!a.isFolder && b.isFolder) return 1
 
@@ -112,22 +125,37 @@ export default function FileBrowser() {
         {/* Toolbar */}
         <div className="p-3 border-b border-slate-700/30 flex items-center justify-between gap-3 flex-wrap">
           {/* Navigation */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={goUp}
-              disabled={state.browserPath === '/'}
+              disabled={path.length <= 1}
               className="px-3 py-1.5 rounded-lg bg-slate-800/50 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm"
             >
               <i className="fa-solid fa-arrow-up" />
             </button>
             <button
-              onClick={() => navigateToFolder('/')}
+              onClick={() => navigateToFolder('root')}
               className="px-3 py-1.5 rounded-lg bg-slate-800/50 text-slate-400 hover:text-white transition-colors text-sm"
             >
               <i className="fa-solid fa-house" />
             </button>
-            <div className="px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-sm font-mono">
-              {state.browserPath}
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-1 text-sm">
+              {path.map((p, i) => (
+                <span key={p.id} className="flex items-center gap-1">
+                  {i > 0 && <i className="fa-solid fa-chevron-right text-slate-600 text-xs" />}
+                  <button
+                    onClick={() => navigateToPathIndex(i)}
+                    className={`px-2 py-1 rounded transition-colors ${
+                      i === path.length - 1
+                        ? 'bg-indigo-500/20 text-indigo-300 font-medium'
+                        : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {p.name}
+                  </button>
+                </span>
+              ))}
             </div>
           </div>
 
@@ -147,7 +175,7 @@ export default function FileBrowser() {
                 onClick={() => setViewMode('grid')}
                 className={`px-3 py-1.5 text-xs ${viewMode === 'grid' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-slate-800/50 text-slate-400'} transition-colors`}
               >
-                <i className="fa-solid fa-grid" />
+                <i className="fa-solid fa-grip" />
               </button>
             </div>
             <select
@@ -177,7 +205,7 @@ export default function FileBrowser() {
             <div className="flex items-center justify-center py-20">
               <div className="text-center">
                 <i className="fa-solid fa-spinner fa-spin text-indigo-400 text-3xl mb-3" />
-                <p className="text-sm text-slate-400">Loading files...</p>
+                <p className="text-sm text-slate-400">Loading files from Google Drive...</p>
               </div>
             </div>
           ) : viewMode === 'list' ? (
@@ -199,8 +227,7 @@ export default function FileBrowser() {
                       ? 'bg-indigo-500/10 border border-indigo-500/20'
                       : 'hover:bg-white/5 border border-transparent'
                   }`}
-                  onClick={() => file.isFolder ? navigateToFolder(file.path) : toggleFileSelection(file.id)}
-                  onDoubleClick={() => file.isFolder && navigateToFolder(file.path)}
+                  onClick={() => file.isFolder ? navigateToFolder(file.id, file.name) : toggleFileSelection(file.id)}
                 >
                   <div className="col-span-1">
                     <input
@@ -241,7 +268,7 @@ export default function FileBrowser() {
                       ? 'bg-indigo-500/10 border border-indigo-500/20'
                       : 'bg-slate-800/30 border border-transparent hover:border-slate-700/50'
                   }`}
-                  onClick={() => file.isFolder ? navigateToFolder(file.path) : toggleFileSelection(file.id)}
+                  onClick={() => file.isFolder ? navigateToFolder(file.id, file.name) : toggleFileSelection(file.id)}
                 >
                   <div className={`w-12 h-12 mx-auto mb-2 rounded-lg flex items-center justify-center ${
                     file.isFolder ? 'bg-indigo-500/20' : 'bg-slate-700/30'

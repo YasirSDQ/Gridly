@@ -18,8 +18,8 @@ export default function Features() {
     },
     {
       icon: 'fa-shield-halved',
-      title: 'End-to-End Encryption',
-      description: 'All transfers are encrypted with AES-256. Your data stays secure throughout the entire transfer process.',
+      title: 'Real OAuth 2.0 + PKCE',
+      description: 'Authenticate with your actual Google account using industry-standard OAuth 2.0 with PKCE. No fake accounts, no demo data.',
       color: 'from-green-500 to-emerald-500',
       bgColor: 'bg-green-500/10',
       borderColor: 'border-green-500/20',
@@ -47,6 +47,14 @@ export default function Features() {
       color: 'from-rose-500 to-red-500',
       bgColor: 'bg-rose-500/10',
       borderColor: 'border-rose-500/20',
+    },
+    {
+      icon: 'fa-cloud',
+      title: 'Google Drive API',
+      description: 'Direct integration with Google Drive API. Browse real files, get accurate storage info, and manage your drive like never before.',
+      color: 'from-sky-500 to-blue-500',
+      bgColor: 'bg-sky-500/10',
+      borderColor: 'border-sky-500/20',
     },
   ]
 

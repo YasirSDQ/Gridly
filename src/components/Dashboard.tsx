@@ -26,7 +26,7 @@ export default function Dashboard() {
   }
 
   const handleBrowse = (accountId: string) => {
-    dispatch({ type: 'SET_BROWSER', payload: { accountId, path: '/' } })
+    dispatch({ type: 'SET_BROWSER', payload: { accountId, path: 'root' } })
   }
 
   const handleRefreshStorage = async (account: typeof state.accounts[0]) => {
