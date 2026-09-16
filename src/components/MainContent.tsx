@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../context/AppContext'
 import { browseFiles, formatBytes } from '../services/rclone'
 import type { DriveFile } from '../types'
+import TransfersView from './TransfersView'
 
 export default function MainContent() {
   const { state, dispatch, addToast } = useApp()
@@ -124,6 +125,11 @@ export default function MainContent() {
         </motion.div>
       </main>
     )
+  }
+
+  // Show TransfersView if we're in the transfers section
+  if (state.currentSection === 'transfers') {
+    return <TransfersView />
   }
 
   return (
