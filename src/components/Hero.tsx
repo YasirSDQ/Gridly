@@ -1,8 +1,8 @@
-interface HeroProps {
-  setActiveSection: (section: string) => void
-}
+import { useApp } from '../context/AppContext'
 
-export default function Hero({ setActiveSection }: HeroProps) {
+export default function Hero() {
+  const { state, dispatch, setView } = useApp()
+
   return (
     <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 min-h-screen flex items-center">
       <div className="max-w-7xl mx-auto w-full">
@@ -11,7 +11,7 @@ export default function Hero({ setActiveSection }: HeroProps) {
           <div className="animate-slide-up">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 mb-6">
               <i className="fa-solid fa-bolt text-yellow-400 text-xs" />
-              <span className="text-sm text-indigo-300 font-medium">Powered by rclone Engine</span>
+              <span className="text-sm text-indigo-300 font-medium">Powered by rclone Engine v1.65</span>
             </div>
             
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-tight mb-6">
@@ -32,26 +32,26 @@ export default function Hero({ setActiveSection }: HeroProps) {
 
             <div className="flex flex-wrap gap-4 mb-10">
               <button
-                onClick={() => setActiveSection('dashboard')}
+                onClick={() => setView('dashboard')}
                 className="px-8 py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold hover:from-indigo-500 hover:to-purple-500 transition-all duration-300 neon-glow flex items-center gap-3"
               >
                 <i className="fa-solid fa-rocket" />
                 Launch Dashboard
               </button>
               <button
-                onClick={() => setActiveSection('transfers')}
+                onClick={() => dispatch({ type: 'SET_AUTH_MODAL', payload: true })}
                 className="px-8 py-4 rounded-xl bg-white/5 border border-white/10 text-white font-semibold hover:bg-white/10 transition-all duration-300 flex items-center gap-3"
               >
-                <i className="fa-solid fa-play" />
-                View Transfers
+                <i className="fa-brands fa-google" />
+                Connect Account
               </button>
             </div>
 
             {/* Stats */}
             <div className="grid grid-cols-3 gap-6">
               <div>
-                <div className="text-2xl font-bold text-white">∞</div>
-                <div className="text-xs text-slate-500 mt-1">Accounts</div>
+                <div className="text-2xl font-bold text-white">{state.accounts.length || '∞'}</div>
+                <div className="text-xs text-slate-500 mt-1">Connected Accounts</div>
               </div>
               <div>
                 <div className="text-2xl font-bold text-white">10x</div>

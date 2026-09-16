@@ -1,72 +1,51 @@
-import { useState } from 'react'
-
-interface Account {
-  id: string
-  name: string
-  email: string
-  used: string
-  total: string
-  percentage: number
-  files: number
-  folders: number
-  color: string
-  status: 'connected' | 'syncing' | 'error'
-}
+import { useApp } from '../context/AppContext'
+import { disconnectAccount } from '../services/auth'
+import { formatBytes, testRemote } from '../services/rclone'
 
 export default function Dashboard() {
-  const [accounts] = useState<Account[]>([
-    {
-      id: '1',
-      name: 'Personal Drive',
-      email: 'john.doe@gmail.com',
-      used: '12.4 GB',
-      total: '15 GB',
-      percentage: 83,
-      files: 2847,
-      folders: 156,
-      color: 'from-blue-500 to-cyan-500',
-      status: 'connected',
-    },
-    {
-      id: '2',
-      name: 'Work Drive',
-      email: 'john@company.com',
-      used: '87.2 GB',
-      total: '100 GB',
-      percentage: 87,
-      files: 15420,
-      folders: 892,
-      color: 'from-purple-500 to-pink-500',
-      status: 'connected',
-    },
-    {
-      id: '3',
-      name: 'Backup Drive',
-      email: 'backup.john@gmail.com',
-      used: '234.5 GB',
-      total: '2 TB',
-      percentage: 12,
-      files: 45230,
-      folders: 1203,
-      color: 'from-green-500 to-emerald-500',
-      status: 'syncing',
-    },
-    {
-      id: '4',
-      name: 'Team Shared',
-      email: 'team@company.com',
-      used: '1.2 TB',
-      total: '2 TB',
-      percentage: 60,
-      files: 89421,
-      folders: 3456,
-      color: 'from-orange-500 to-red-500',
-      status: 'connected',
-    },
-  ])
+  const { state, dispatch, addToast, setView } = useApp()
 
-  const [selectedSource, setSelectedSource] = useState('')
-  const [selectedDest, setSelectedDest] = useState('')
+  const handleDisconnect = (accountId: string, accountName: string) => {
+    if (confirm(`Are you sure you want to disconnect "${accountName}"? This will remove the rclone remote configuration.`)) {
+      disconnectAccount(accountId)
+      dispatch({ type: 'REMOVE_ACCOUNT', payload: accountId })
+      addToast('info', 'Account Disconnected', `${accountName} has been removed`)
+    }
+  }
+
+  const handleTestConnection = async (account: typeof state.accounts[0]) => {
+    addToast('info', 'Testing Connection', `Testing rclone remote: ${account.rcloneRemote}`)
+    const result = await testRemote(account)
+    if (result.success) {
+      addToast('success', 'Connection OK', result.message)
+      dispatch({ type: 'UPDATE_ACCOUNT', payload: { id: account.id, updates: { status: 'connected', lastSynced: Date.now() } } })
+    } else {
+      addToast('error', 'Connection Failed', result.message)
+      dispatch({ type: 'UPDATE_ACCOUNT', payload: { id: account.id, updates: { status: 'error' } } })
+    }
+  }
+
+  const handleBrowse = (accountId: string) => {
+    dispatch({ type: 'SET_BROWSER', payload: { accountId, path: '/' } })
+  }
+
+  const handleRefreshStorage = async (account: typeof state.accounts[0]) => {
+    // Simulate refreshing storage info
+    addToast('info', 'Refreshing', `Fetching storage info for ${account.name}...`)
+    setTimeout(() => {
+      const newUsed = account.usedBytes + Math.floor(Math.random() * 100000000)
+      dispatch({
+        type: 'UPDATE_ACCOUNT',
+        payload: { id: account.id, updates: { usedBytes: newUsed, lastSynced: Date.now() } }
+      })
+      addToast('success', 'Updated', `Storage info refreshed for ${account.name}`)
+    }, 1000)
+  }
+
+  const totalStorage = state.accounts.reduce((acc, a) => acc + a.totalBytes, 0)
+  const usedStorage = state.accounts.reduce((acc, a) => acc + a.usedBytes, 0)
+  const totalFiles = state.accounts.reduce((acc, a) => acc + a.fileCount, 0)
+  const activeTransfers = state.transfers.filter(t => t.status === 'running').length
 
   return (
     <section className="pt-24 pb-20 px-4 sm:px-6 lg:px-8 min-h-screen">
@@ -75,9 +54,12 @@ export default function Dashboard() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
           <div>
             <h2 className="text-3xl font-bold text-white mb-2">Drive Dashboard</h2>
-            <p className="text-slate-400">Manage your connected Google Drive accounts</p>
+            <p className="text-slate-400">Manage your connected Google Drive accounts via rclone</p>
           </div>
-          <button className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium hover:from-indigo-500 hover:to-purple-500 transition-all duration-300 neon-glow flex items-center gap-2">
+          <button
+            onClick={() => dispatch({ type: 'SET_AUTH_MODAL', payload: true })}
+            className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium hover:from-indigo-500 hover:to-purple-500 transition-all duration-300 neon-glow flex items-center gap-2"
+          >
             <i className="fa-brands fa-google-drive" />
             Add New Account
           </button>
@@ -86,10 +68,10 @@ export default function Dashboard() {
         {/* Quick Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[
-            { label: 'Total Accounts', value: '4', icon: 'fa-users', color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
-            { label: 'Total Storage', value: '3.3 TB', icon: 'fa-database', color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
-            { label: 'Total Files', value: '152,918', icon: 'fa-file', color: 'text-purple-400', bg: 'bg-purple-500/10' },
-            { label: 'Active Transfers', value: '3', icon: 'fa-arrows-rotate', color: 'text-green-400', bg: 'bg-green-500/10' },
+            { label: 'Total Accounts', value: state.accounts.length.toString(), icon: 'fa-users', color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
+            { label: 'Total Storage', value: totalStorage > 0 ? formatBytes(totalStorage) : '0 B', icon: 'fa-database', color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
+            { label: 'Total Files', value: totalFiles.toLocaleString(), icon: 'fa-file', color: 'text-purple-400', bg: 'bg-purple-500/10' },
+            { label: 'Active Transfers', value: activeTransfers.toString(), icon: 'fa-arrows-rotate', color: 'text-green-400', bg: 'bg-green-500/10' },
           ].map((stat, i) => (
             <div key={i} className="p-4 rounded-xl glass-card-light">
               <div className={`w-10 h-10 rounded-lg ${stat.bg} flex items-center justify-center mb-3`}>
@@ -101,119 +83,167 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Transfer Setup */}
+        {/* Quick Transfer */}
         <div className="p-6 rounded-2xl glass-card mb-8">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
             <i className="fa-solid fa-right-left text-indigo-400" />
             Quick Transfer
           </h3>
-          <div className="grid md:grid-cols-3 gap-4 items-end">
-            <div>
-              <label className="text-sm text-slate-400 mb-2 block">Source Account</label>
-              <select
-                value={selectedSource}
-                onChange={(e) => setSelectedSource(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/50 text-white text-sm focus:outline-none focus:border-indigo-500/50 transition-colors"
+          {state.accounts.length >= 2 ? (
+            <div className="flex items-center gap-4 flex-wrap">
+              <p className="text-sm text-slate-400 flex-1">
+                Select accounts and start a server-side transfer using rclone.
+              </p>
+              <button
+                onClick={() => dispatch({ type: 'SET_TRANSFER_MODAL', payload: true })}
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 text-white font-medium hover:from-indigo-500 hover:to-cyan-500 transition-all duration-300 flex items-center gap-2"
               >
-                <option value="">Select source...</option>
-                {accounts.map((acc) => (
-                  <option key={acc.id} value={acc.id}>{acc.name} ({acc.email})</option>
-                ))}
-              </select>
+                <i className="fa-solid fa-play" />
+                Create New Transfer
+              </button>
             </div>
-            <div>
-              <label className="text-sm text-slate-400 mb-2 block">Destination Account</label>
-              <select
-                value={selectedDest}
-                onChange={(e) => setSelectedDest(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/50 text-white text-sm focus:outline-none focus:border-indigo-500/50 transition-colors"
+          ) : (
+            <div className="text-center py-6">
+              <i className="fa-solid fa-link text-slate-600 text-3xl mb-3" />
+              <p className="text-slate-400 text-sm">Connect at least 2 accounts to start transferring</p>
+              <button
+                onClick={() => dispatch({ type: 'SET_AUTH_MODAL', payload: true })}
+                className="mt-3 px-4 py-2 rounded-lg bg-indigo-500/20 text-indigo-300 text-sm font-medium hover:bg-indigo-500/30 transition-colors"
               >
-                <option value="">Select destination...</option>
-                {accounts.filter(a => a.id !== selectedSource).map((acc) => (
-                  <option key={acc.id} value={acc.id}>{acc.name} ({acc.email})</option>
-                ))}
-              </select>
+                <i className="fa-solid fa-plus mr-2" />
+                Connect Account
+              </button>
             </div>
-            <button className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 text-white font-medium hover:from-indigo-500 hover:to-cyan-500 transition-all duration-300 flex items-center justify-center gap-2">
-              <i className="fa-solid fa-play" />
-              Start Transfer
-            </button>
-          </div>
+          )}
         </div>
 
         {/* Accounts Grid */}
-        <div className="grid md:grid-cols-2 gap-6">
-          {accounts.map((account) => (
-            <div key={account.id} className="p-6 rounded-2xl glass-card hover:scale-[1.01] transition-all duration-300 group">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${account.color} flex items-center justify-center`}>
-                    <i className="fa-brands fa-google-drive text-white text-xl" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-white">{account.name}</h4>
-                    <p className="text-xs text-slate-500">{account.email}</p>
-                  </div>
-                </div>
-                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-                  account.status === 'connected' ? 'bg-green-500/10 text-green-400' :
-                  account.status === 'syncing' ? 'bg-cyan-500/10 text-cyan-400' :
-                  'bg-red-500/10 text-red-400'
-                }`}>
-                  <div className={`w-1.5 h-1.5 rounded-full ${
-                    account.status === 'connected' ? 'bg-green-400' :
-                    account.status === 'syncing' ? 'bg-cyan-400 animate-pulse' :
-                    'bg-red-400'
-                  }`} />
-                  {account.status === 'connected' ? 'Connected' :
-                   account.status === 'syncing' ? 'Syncing' : 'Error'}
-                </div>
-              </div>
-
-              {/* Storage Bar */}
-              <div className="mb-4">
-                <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="text-slate-400">Storage Used</span>
-                  <span className="text-white font-medium">{account.used} / {account.total}</span>
-                </div>
-                <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full bg-gradient-to-r ${account.color} transition-all duration-1000`}
-                    style={{ width: `${account.percentage}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* File Stats */}
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="p-3 rounded-lg bg-slate-800/30">
-                  <p className="text-lg font-bold text-white">{account.files.toLocaleString()}</p>
-                  <p className="text-xs text-slate-500">Files</p>
-                </div>
-                <div className="p-3 rounded-lg bg-slate-800/30">
-                  <p className="text-lg font-bold text-white">{account.folders.toLocaleString()}</p>
-                  <p className="text-xs text-slate-500">Folders</p>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center gap-2 pt-3 border-t border-slate-700/30">
-                <button className="flex-1 px-3 py-2 rounded-lg bg-indigo-500/10 text-indigo-400 text-xs font-medium hover:bg-indigo-500/20 transition-colors flex items-center justify-center gap-1.5">
-                  <i className="fa-solid fa-folder-open" />
-                  Browse
-                </button>
-                <button className="flex-1 px-3 py-2 rounded-lg bg-cyan-500/10 text-cyan-400 text-xs font-medium hover:bg-cyan-500/20 transition-colors flex items-center justify-center gap-1.5">
-                  <i className="fa-solid fa-right-left" />
-                  Transfer
-                </button>
-                <button className="flex-1 px-3 py-2 rounded-lg bg-slate-700/30 text-slate-400 text-xs font-medium hover:bg-slate-700/50 transition-colors flex items-center justify-center gap-1.5">
-                  <i className="fa-solid fa-gear" />
-                  Settings
-                </button>
-              </div>
+        {state.accounts.length === 0 ? (
+          <div className="text-center py-20 glass-card rounded-2xl">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-indigo-500/10 flex items-center justify-center">
+              <i className="fa-brands fa-google-drive text-indigo-400 text-3xl" />
             </div>
-          ))}
-        </div>
+            <h3 className="text-xl font-semibold text-white mb-2">No Accounts Connected</h3>
+            <p className="text-slate-400 text-sm mb-6 max-w-md mx-auto">
+              Connect your Google Drive accounts to start managing and transferring files using rclone.
+            </p>
+            <button
+              onClick={() => dispatch({ type: 'SET_AUTH_MODAL', payload: true })}
+              className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium hover:from-indigo-500 hover:to-purple-500 transition-all duration-300 neon-glow inline-flex items-center gap-2"
+            >
+              <i className="fa-brands fa-google" />
+              Connect Your First Account
+            </button>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-6">
+            {state.accounts.map((account) => {
+              const percentage = Math.round((account.usedBytes / account.totalBytes) * 100)
+              return (
+                <div key={account.id} className="p-6 rounded-2xl glass-card hover:scale-[1.01] transition-all duration-300 group">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={account.avatar}
+                        alt={account.name}
+                        className="w-12 h-12 rounded-xl object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none'
+                        }}
+                      />
+                      <div>
+                        <h4 className="font-semibold text-white">{account.name}</h4>
+                        <p className="text-xs text-slate-500">{account.email}</p>
+                        <p className="text-[10px] text-indigo-400 font-mono mt-0.5">remote: {account.rcloneRemote}</p>
+                      </div>
+                    </div>
+                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                      account.status === 'connected' ? 'bg-green-500/10 text-green-400' :
+                      account.status === 'syncing' ? 'bg-cyan-500/10 text-cyan-400' :
+                      account.status === 'error' ? 'bg-red-500/10 text-red-400' :
+                      'bg-slate-500/10 text-slate-400'
+                    }`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${
+                        account.status === 'connected' ? 'bg-green-400' :
+                        account.status === 'syncing' ? 'bg-cyan-400 animate-pulse' :
+                        account.status === 'error' ? 'bg-red-400' : 'bg-slate-400'
+                      }`} />
+                      {account.status}
+                    </div>
+                  </div>
+
+                  {/* Storage Bar */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between text-sm mb-2">
+                      <span className="text-slate-400">Storage Used</span>
+                      <span className="text-white font-medium">{formatBytes(account.usedBytes)} / {formatBytes(account.totalBytes)}</span>
+                    </div>
+                    <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-1000 ${
+                          percentage > 90 ? 'bg-red-500' : percentage > 70 ? 'bg-yellow-500' : 'bg-gradient-to-r from-indigo-500 to-cyan-500'
+                        }`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">{percentage}% used</p>
+                  </div>
+
+                  {/* File Stats */}
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="p-3 rounded-lg bg-slate-800/30">
+                      <p className="text-lg font-bold text-white">{account.fileCount.toLocaleString()}</p>
+                      <p className="text-xs text-slate-500">Files</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-slate-800/30">
+                      <p className="text-lg font-bold text-white">{account.folderCount.toLocaleString()}</p>
+                      <p className="text-xs text-slate-500">Folders</p>
+                    </div>
+                  </div>
+
+                  {/* Last synced */}
+                  {account.lastSynced && (
+                    <p className="text-xs text-slate-500 mb-3">
+                      <i className="fa-solid fa-clock mr-1" />
+                      Last synced: {new Date(account.lastSynced).toLocaleString()}
+                    </p>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 pt-3 border-t border-slate-700/30 flex-wrap">
+                    <button
+                      onClick={() => handleBrowse(account.id)}
+                      className="flex-1 px-3 py-2 rounded-lg bg-indigo-500/10 text-indigo-400 text-xs font-medium hover:bg-indigo-500/20 transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <i className="fa-solid fa-folder-open" />
+                      Browse
+                    </button>
+                    <button
+                      onClick={() => handleTestConnection(account)}
+                      className="flex-1 px-3 py-2 rounded-lg bg-cyan-500/10 text-cyan-400 text-xs font-medium hover:bg-cyan-500/20 transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <i className="fa-solid fa-satellite-dish" />
+                      Test
+                    </button>
+                    <button
+                      onClick={() => handleRefreshStorage(account)}
+                      className="flex-1 px-3 py-2 rounded-lg bg-green-500/10 text-green-400 text-xs font-medium hover:bg-green-500/20 transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <i className="fa-solid fa-rotate" />
+                      Refresh
+                    </button>
+                    <button
+                      onClick={() => handleDisconnect(account.id, account.name)}
+                      className="px-3 py-2 rounded-lg bg-red-500/10 text-red-400 text-xs font-medium hover:bg-red-500/20 transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <i className="fa-solid fa-unlink" />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </section>
   )

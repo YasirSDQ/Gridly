@@ -1,14 +1,19 @@
-import { useState } from 'react'
+import { AppProvider, useApp } from './context/AppContext'
 import Header from './components/Header'
 import Hero from './components/Hero'
 import Features from './components/Features'
 import Dashboard from './components/Dashboard'
 import TransferManager from './components/TransferManager'
 import HowItWorks from './components/HowItWorks'
+import SettingsPanel from './components/SettingsPanel'
+import FileBrowser from './components/FileBrowser'
+import AuthModal from './components/AuthModal'
+import TransferModal from './components/TransferModal'
+import Toast from './components/Toast'
 import Footer from './components/Footer'
 
-export default function App() {
-  const [activeSection, setActiveSection] = useState('home')
+function AppContent() {
+  const { state, setView } = useApp()
 
   return (
     <div className="min-h-screen bg-slate-950 text-white overflow-x-hidden">
@@ -22,26 +27,36 @@ export default function App() {
 
       {/* Content */}
       <div className="relative z-10">
-        <Header activeSection={activeSection} setActiveSection={setActiveSection} />
+        <Header />
         
-        {activeSection === 'home' && (
+        {state.currentView === 'home' && (
           <>
-            <Hero setActiveSection={setActiveSection} />
+            <Hero />
             <Features />
             <HowItWorks />
           </>
         )}
         
-        {activeSection === 'dashboard' && (
-          <Dashboard />
-        )}
-        
-        {activeSection === 'transfers' && (
-          <TransferManager />
-        )}
+        {state.currentView === 'dashboard' && <Dashboard />}
+        {state.currentView === 'transfers' && <TransferManager />}
+        {state.currentView === 'settings' && <SettingsPanel />}
 
         <Footer />
       </div>
+
+      {/* Modals */}
+      <AuthModal />
+      <TransferModal />
+      <FileBrowser />
+      <Toast />
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <AppProvider>
+      <AppContent />
+    </AppProvider>
   )
 }
