@@ -7,12 +7,12 @@ export default function Sidebar() {
   const { state, dispatch } = useApp()
   const currentAccount = state.accounts.find(a => a.id === state.currentAccountId)
 
-  const navItems: { id: Section; label: string; icon: string; count?: number }[] = [
-    { id: 'mydrive', label: 'My Drive', icon: 'fa-hard-drive' },
-    { id: 'recent', label: 'Recent', icon: 'fa-clock-rotate-left' },
-    { id: 'starred', label: 'Starred', icon: 'fa-star', count: state.starredFiles.size },
-    { id: 'shared', label: 'Shared', icon: 'fa-users' },
-    { id: 'trash', label: 'Trash', icon: 'fa-trash' },
+  const navItems: { id: Section; label: string; icon: string; count?: number; color?: string }[] = [
+    { id: 'mydrive', label: 'My Drive', icon: 'fa-hard-drive', color: 'from-blue-500 to-cyan-500' },
+    { id: 'recent', label: 'Recent', icon: 'fa-clock-rotate-left', color: 'from-purple-500 to-pink-500' },
+    { id: 'starred', label: 'Starred', icon: 'fa-star', count: state.starredFiles.size, color: 'from-yellow-500 to-orange-500' },
+    { id: 'shared', label: 'Shared', icon: 'fa-users', color: 'from-green-500 to-emerald-500' },
+    { id: 'trash', label: 'Trash', icon: 'fa-trash', color: 'from-red-500 to-rose-500' },
   ]
 
   const handleSectionChange = (section: Section) => {
@@ -37,74 +37,85 @@ export default function Sidebar() {
 
   return (
     <motion.aside
-      initial={{ x: -20, opacity: 0 }}
+      initial={{ x: -50, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
-      transition={{ duration: 0.4, delay: 0.1 }}
-      className={`${state.sidebarCollapsed ? 'w-16' : 'w-64'} bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-300 flex-shrink-0`}
+      transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+      className={`${state.sidebarCollapsed ? 'w-20' : 'w-72'} bg-white dark:bg-slate-900 border-r border-slate-200/50 dark:border-slate-800/50 flex flex-col transition-all duration-300 flex-shrink-0 shadow-sm`}
     >
       {/* New Button */}
       {!state.sidebarCollapsed && (
         <motion.div
-          initial={{ y: -10, opacity: 0 }}
+          initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="p-4"
+          className="p-5"
         >
           <motion.button
-            whileHover={{ scale: 1.02 }}
+            whileHover={{ scale: 1.02, y: -2 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => dispatch({ type: 'SET_NEW_FOLDER_MODAL', payload: true })}
-            className="w-full flex items-center gap-3 px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full shadow-sm hover:shadow-md transition-all group"
+            className="w-full flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-2xl shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all duration-300 group"
           >
-            <svg className="w-6 h-6 text-slate-700 dark:text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">New</span>
+            <motion.div
+              animate={{ rotate: [0, 90, 0] }}
+              transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+              className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center"
+            >
+              <i className="fa-solid fa-plus text-white group-hover:rotate-90 transition-transform duration-300" />
+            </motion.div>
+            <span className="text-sm font-semibold">New</span>
           </motion.button>
         </motion.div>
       )}
 
       {state.sidebarCollapsed && (
-        <div className="p-2">
+        <div className="p-3">
           <motion.button
-            whileHover={{ scale: 1.1 }}
+            whileHover={{ scale: 1.1, rotate: 90 }}
             whileTap={{ scale: 0.9 }}
             onClick={() => dispatch({ type: 'SET_NEW_FOLDER_MODAL', payload: true })}
-            className="w-12 h-12 flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full shadow-sm hover:shadow-md transition-all"
+            className="w-14 h-14 flex items-center justify-center bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all duration-300"
           >
-            <svg className="w-6 h-6 text-slate-700 dark:text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
+            <i className="fa-solid fa-plus text-white text-lg" />
           </motion.button>
         </div>
       )}
 
       {/* Navigation */}
-      <nav className="flex-1 px-2 py-2 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
         {navItems.map((item, i) => (
           <motion.button
             key={item.id}
-            initial={{ x: -20, opacity: 0 }}
+            initial={{ x: -30, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            transition={{ delay: 0.3 + i * 0.05 }}
-            whileHover={{ x: 2 }}
+            transition={{ delay: 0.3 + i * 0.05, duration: 0.3 }}
+            whileHover={{ x: 4 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => handleSectionChange(item.id)}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left ${
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden ${
               state.currentSection === item.id
-                ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400'
-                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                ? 'bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 text-indigo-700 dark:text-indigo-400 shadow-sm'
+                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50'
             }`}
           >
-            <i className={`fa-solid ${item.icon} w-5 text-center`} />
+            {state.currentSection === item.id && (
+              <motion.div
+                layoutId="activeSection"
+                className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 dark:from-indigo-500/20 dark:to-purple-500/20"
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              />
+            )}
+            <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${item.color} flex items-center justify-center shadow-sm relative z-10`}>
+              <i className={`fa-solid ${item.icon} text-white text-sm`} />
+            </div>
             {!state.sidebarCollapsed && (
               <>
-                <span className="text-sm font-medium flex-1">{item.label}</span>
+                <span className="text-sm font-medium flex-1 text-left relative z-10">{item.label}</span>
                 {item.count !== undefined && item.count > 0 && (
                   <motion.span
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="text-xs bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-full"
+                    className="text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-2.5 py-1 rounded-full font-semibold relative z-10"
                   >
                     {item.count}
                   </motion.span>
@@ -116,27 +127,40 @@ export default function Sidebar() {
 
         {/* Transfers */}
         <motion.button
-          initial={{ x: -20, opacity: 0 }}
+          initial={{ x: -30, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          whileHover={{ x: 2 }}
+          transition={{ delay: 0.6 }}
+          whileHover={{ x: 4 }}
           whileTap={{ scale: 0.98 }}
           onClick={() => handleSectionChange('transfers' as Section)}
-          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left ${
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden ${
             state.currentSection === ('transfers' as Section)
-              ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400'
-              : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              ? 'bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 text-indigo-700 dark:text-indigo-400 shadow-sm'
+              : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50'
           }`}
         >
-          <i className="fa-solid fa-arrows-rotate w-5 text-center" />
+          {state.currentSection === ('transfers' as Section) && (
+            <motion.div
+              layoutId="activeSection"
+              className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 dark:from-indigo-500/20 dark:to-purple-500/20"
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            />
+          )}
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center shadow-sm relative z-10">
+            <motion.i
+              animate={{ rotate: state.transfers.filter(t => t.status === 'running').length > 0 ? 360 : 0 }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+              className="fa-solid fa-arrows-rotate text-white text-sm"
+            />
+          </div>
           {!state.sidebarCollapsed && (
             <>
-              <span className="text-sm font-medium flex-1">Transfers</span>
+              <span className="text-sm font-medium flex-1 text-left relative z-10">Transfers</span>
               {state.transfers.filter(t => t.status === 'running').length > 0 && (
                 <motion.span
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full"
+                  className="text-xs bg-green-500 text-white px-2.5 py-1 rounded-full font-semibold relative z-10 shadow-sm"
                 >
                   {state.transfers.filter(t => t.status === 'running').length}
                 </motion.span>
@@ -149,47 +173,55 @@ export default function Sidebar() {
       {/* Storage & Account */}
       {!state.sidebarCollapsed && currentAccount && (
         <motion.div
-          initial={{ y: 20, opacity: 0 }}
+          initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="p-4 border-t border-slate-200 dark:border-slate-800"
+          transition={{ delay: 0.7 }}
+          className="p-5 border-t border-slate-200/50 dark:border-slate-800/50"
         >
           {/* Storage */}
-          <div className="mb-3">
-            <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 mb-1">
-              <span>Storage</span>
-              <span>{formatBytes(currentAccount.usedBytes)} of {formatBytes(currentAccount.totalBytes)}</span>
+          <div className="mb-4">
+            <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 mb-2">
+              <span className="font-medium">Storage</span>
+              <span className="font-semibold">{formatBytes(currentAccount.usedBytes)} / {formatBytes(currentAccount.totalBytes)}</span>
             </div>
-            <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+            <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${storagePercent}%` }}
-                transition={{ duration: 1, delay: 0.7 }}
-                className={`h-full rounded-full transition-all ${
-                  storagePercent > 90 ? 'bg-red-500' : storagePercent > 70 ? 'bg-orange-500' : 'bg-indigo-500'
+                transition={{ duration: 1.5, delay: 0.8, ease: 'easeOut' }}
+                className={`h-full rounded-full bg-gradient-to-r ${
+                  storagePercent > 90 ? 'from-red-500 to-rose-500' : 
+                  storagePercent > 70 ? 'from-orange-500 to-amber-500' : 
+                  'from-indigo-500 to-purple-500'
                 }`}
               />
             </div>
+            <p className="text-xs text-slate-500 mt-1.5">{storagePercent}% used</p>
           </div>
 
           {/* Account */}
-          <motion.div
+          <motion.button
             whileHover={{ scale: 1.02 }}
-            className="flex items-center gap-2 cursor-pointer"
+            whileTap={{ scale: 0.98 }}
             onClick={() => dispatch({ type: 'SET_SETTINGS_MODAL', payload: true })}
+            className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all duration-200 group"
           >
-            <img
-              src={currentAccount.avatar}
-              alt={currentAccount.name}
-              className="w-8 h-8 rounded-full"
-            />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
+            <div className="relative">
+              <img
+                src={currentAccount.avatar}
+                alt={currentAccount.name}
+                className="w-10 h-10 rounded-full"
+              />
+              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-slate-900" />
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
                 {currentAccount.name}
               </p>
               <p className="text-xs text-slate-500 truncate">{currentAccount.email}</p>
             </div>
-          </motion.div>
+            <i className="fa-solid fa-chevron-right text-slate-400 text-xs group-hover:translate-x-1 transition-transform" />
+          </motion.button>
         </motion.div>
       )}
     </motion.aside>

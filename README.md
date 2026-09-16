@@ -1,8 +1,8 @@
 # Gridly - Advanced Drive Manager
 
-A modern, full-featured Google Drive manager powered by **rclone** with a stunning animated interface. Gridly provides a beautiful landing page, seamless account connection flow, and a Google Drive-like interface for managing multiple Google Drive accounts with server-side file transfers.
+A **premium, modern** Google Drive manager powered by **rclone** with stunning animations, beautiful UI, and advanced features. Gridly provides a Google Drive-like experience with server-side file transfers and a polished, professional interface.
 
-![Gridly](https://img.shields.io/badge/Gridly-v3.0-blue)
+![Gridly](https://img.shields.io/badge/Gridly-v4.0-blue)
 ![rclone](https://img.shields.io/badge/rclone-1.60+-green)
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![Tailwind](https://img.shields.io/badge/Tailwind-4-06b6d4)
@@ -10,45 +10,54 @@ A modern, full-featured Google Drive manager powered by **rclone** with a stunni
 
 ## ✨ Features
 
-### 🎨 Stunning Animated Landing Page
-- **Beautiful hero section** with animated gradients and floating elements
-- **Smooth transitions** between landing page and drive manager
-- **Interactive animations** powered by Framer Motion
-- **Modern glass-morphism** effects and neon glows
-- **Responsive design** that works on all devices
+### 🎨 Stunning Modern UI
+- **Beautiful landing page** with animated gradients and floating elements
+- **Smooth page transitions** with Framer Motion
+- **Glass-morphism effects** with backdrop blur
+- **Gradient animations** throughout the interface
+- **Neon glows** and shadow effects
+- **Modern card designs** with hover animations
+- **Premium typography** with Inter font
+- **Consistent color system** with indigo/purple/cyan palette
 
-### 🚀 Seamless Onboarding Flow
-1. **Landing Page** - Showcase features and benefits
-2. **Connect Account** - OAuth via rclone with animated modals
-3. **Drive Manager** - Full-featured file management interface
-4. **Smooth Transitions** - Animated page transitions with Framer Motion
+### 🚀 Advanced Animations
+- **Page transitions** - Smooth fade and scale between views
+- **Staggered animations** - Elements animate in sequence
+- **Hover effects** - Interactive scale, lift, and glow animations
+- **Loading states** - Animated spinners and skeleton loaders
+- **Micro-interactions** - Button presses, toggles, selections
+- **Layout animations** - Smooth reordering when files change
+- **Spring physics** - Natural, bouncy animations
+- **Gesture support** - Drag, swipe, and tap interactions
 
 ### 🎯 Google Drive-like Interface
-- **Sidebar navigation** with My Drive, Recent, Starred, Shared, Trash sections
-- **Grid and List views** with smooth animations
-- **Breadcrumb navigation** for easy folder traversal
-- **Details panel** showing file information, activity, and sharing
-- **Context menu** with right-click actions
-- **Multi-select** with Ctrl/Cmd+click
-- **Search** with keyboard shortcut (⌘K)
-- **Account switcher** for managing multiple accounts
-- **Storage indicator** showing usage per account
+- **Sidebar navigation** with animated icons and gradients
+- **Grid and List views** with smooth transitions
+- **Breadcrumb navigation** with animated path items
+- **Details panel** with tabbed interface and animations
+- **Context menu** with staggered item animations
+- **Multi-select** with animated checkboxes
+- **Search** with keyboard shortcut (⌘K) and focus animations
+- **Account switcher** with animated dropdown
+- **Storage indicator** with animated progress bar
+- **Notifications** with animated badges
 
 ### 🔌 Real rclone Integration
 - **rclone RC API** - Full integration via Remote Control HTTP API
-- **OAuth via rclone** - Secure Google authentication handled by rclone
-- **Server-side transfers** - Copy/move/sync between accounts without downloading
-- **Real-time progress** - Live transfer monitoring via `core/stats`
-- **Job tracking** - Monitor transfers via `job/status`
+- **OAuth via rclone** - Secure Google authentication
+- **Server-side transfers** - Zero bandwidth usage
+- **Real-time progress** - Live monitoring via `core/stats`
+- **Job tracking** - Monitor via `job/status`
 
 ### 📁 File Management
-- Browse files and folders via rclone
-- Star/unstar files with animations
-- Rename files and folders
-- Create new folders
+- Browse files with animated grid/list views
+- Star/unstar files with animated stars
+- Rename files and folders with modal dialogs
+- Create new folders with animated modals
 - Copy, move, delete operations
 - Transfer files between accounts
-- File details with metadata
+- File details with animated tabs
+- Context menu with staggered animations
 
 ### ⚡ Transfer Engine
 - Copy/Move/Sync operations
@@ -56,24 +65,26 @@ A modern, full-featured Google Drive manager powered by **rclone** with a stunni
 - Pause/resume/cancel transfers
 - Transfer logs
 - Multiple concurrent transfers
+- Animated progress bars
 
 ## 🎬 User Experience Flow
 
 ### 1. Landing Page
-When you first open Gridly, you'll see a beautiful animated landing page with:
+Beautiful animated landing page with:
 - Animated gradient background with floating orbs
-- Hero section with compelling copy and CTA buttons
+- Hero section with compelling copy
 - Feature cards with hover animations
-- Stats section showing key benefits
+- Stats section with animated counters
+- Call-to-action buttons with glow effects
 - Smooth scroll animations
 
 ### 2. Connect Account
 Click "Connect Your Drive" to:
-- Open an animated modal
+- Open an animated modal with spring physics
 - Check rclone connection status
 - Enter remote name and configure scope
 - Complete OAuth in browser
-- See success animation
+- See success animation with checkmark
 
 ### 3. Drive Manager
 After connecting, smoothly transition to:
@@ -82,6 +93,7 @@ After connecting, smoothly transition to:
 - File browser with grid/list views
 - Real-time file operations
 - Transfer monitoring
+- Details panel with tabs
 
 ## 🚀 Quick Start
 
@@ -114,35 +126,40 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173)
 
-### 4. Experience the Flow
+### 4. Experience the Magic
 1. **See the landing page** with beautiful animations
 2. **Click "Connect Your Drive"** to start onboarding
 3. **Complete OAuth** in the browser
 4. **Watch the smooth transition** to the drive manager
 5. **Start managing** your Google Drive files!
 
-## 🎨 Design Highlights
+## 🎨 Design System
+
+### Colors
+- **Primary**: Indigo (#6366f1) to Purple (#a855f7)
+- **Secondary**: Cyan (#06b6d4) to Blue (#3b82f6)
+- **Success**: Green (#10b981) to Emerald (#059669)
+- **Warning**: Orange (#f97316) to Amber (#f59e0b)
+- **Danger**: Red (#ef4444) to Rose (#e11d48)
+
+### Typography
+- **Font**: Inter (Google Fonts)
+- **Weights**: 300, 400, 500, 600, 700
+- **Sizes**: xs (10px) to 7xl (72px)
 
 ### Animations
-- **Page transitions** - Smooth fade and scale animations between views
-- **Staggered animations** - Elements animate in sequence for visual flow
-- **Hover effects** - Interactive hover states with scale and shadow changes
-- **Loading states** - Animated spinners and progress bars
-- **Micro-interactions** - Button presses, toggles, and selections
+- **Duration**: 0.2s - 0.5s for most animations
+- **Easing**: Spring physics for natural motion
+- **Stagger**: 0.03s - 0.1s between elements
+- **Scale**: 0.9 - 1.1 for hover/tap effects
+- **Rotate**: 5° - 15° for icon animations
 
-### Visual Design
-- **Gradient backgrounds** - Beautiful indigo to purple gradients
-- **Glass-morphism** - Frosted glass effects with backdrop blur
-- **Neon glows** - Subtle glowing effects on important elements
-- **Modern typography** - Clean, readable fonts with proper hierarchy
-- **Color system** - Consistent color palette with semantic meaning
-
-### UX Patterns
-- **Progressive disclosure** - Show information when needed
-- **Keyboard shortcuts** - Power user support (⌘K for search)
-- **Contextual actions** - Right-click menus for quick operations
-- **Visual feedback** - Every action has clear visual response
-- **Accessibility** - Proper focus states and ARIA labels
+### Shadows
+- **sm**: 0 1px 2px rgba(0, 0, 0, 0.05)
+- **md**: 0 4px 6px rgba(0, 0, 0, 0.1)
+- **lg**: 0 10px 15px rgba(0, 0, 0, 0.1)
+- **xl**: 0 20px 25px rgba(0, 0, 0, 0.15)
+- **2xl**: 0 25px 50px rgba(0, 0, 0, 0.25)
 
 ## 🏗️ Architecture
 
@@ -165,7 +182,7 @@ Open [http://localhost:5173](http://localhost:5173)
 └─────────────────┘
 ```
 
-## 📋 rclone RC API Endpoints Used
+## 📋 rclone RC API Endpoints
 
 - `core/version` - Check rclone version
 - `core/stats` - Get transfer statistics
@@ -187,6 +204,7 @@ Open [http://localhost:5173](http://localhost:5173)
 | `Ctrl+Click` | Multi-select files |
 | `Right-click` | Context menu |
 | `i` | Toggle details panel |
+| `Esc` | Close modals |
 
 ## 🔒 Security
 
@@ -246,15 +264,16 @@ rclone rcd --rc-addr=localhost:5572
 - Make sure rclone can open a browser
 - Try `rclone config` manually first
 
-### Transfer fails
-- Check rclone logs in the terminal
-- Verify both accounts are connected
-- Check Google Drive API quotas
-
 ### Animations not working
 - Check browser console for errors
 - Ensure Framer Motion is installed: `npm install framer-motion`
 - Try clearing browser cache
+- Check browser compatibility (requires modern browser)
+
+### Transfer fails
+- Check rclone logs in the terminal
+- Verify both accounts are connected
+- Check Google Drive API quotas
 
 ## 📝 Environment Variables
 
@@ -280,8 +299,14 @@ Modify animation durations and easing in component files:
 <motion.div
   initial={{ opacity: 0 }}
   animate={{ opacity: 1 }}
-  transition={{ duration: 0.5 }}
+  transition={{ duration: 0.5, type: 'spring' }}
 >
+```
+
+### Fonts
+Change the font in `index.html`:
+```html
+<link href="https://fonts.googleapis.com/css2?family=YourFont:wght@400;500;600;700&display=swap" rel="stylesheet">
 ```
 
 ## 🙏 Acknowledgments
@@ -291,6 +316,7 @@ Modify animation durations and easing in component files:
 - [Tailwind CSS](https://tailwindcss.com/) - CSS framework
 - [Framer Motion](https://www.framer.com/motion/) - Animation library
 - [Font Awesome](https://fontawesome.com/) - Icons
+- [Inter Font](https://rsms.me/inter/) - Typography
 
 ## 📄 License
 
@@ -300,4 +326,4 @@ MIT License
 
 **Built with ❤️ using React, TypeScript, Tailwind CSS, Framer Motion, and rclone**
 
-Experience the future of cloud storage management with Gridly!
+Experience the future of cloud storage management with Gridly - where functionality meets beautiful design!
