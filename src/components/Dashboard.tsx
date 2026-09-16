@@ -1,15 +1,20 @@
 import { useApp } from '../context/AppContext'
-import { disconnectAccount } from '../services/auth'
+import { disconnectAccount, refreshAccountInfo } from '../services/auth'
 import { formatBytes, testRemote } from '../services/rclone'
+import { storage } from '../services/storage'
 
 export default function Dashboard() {
   const { state, dispatch, addToast, setView } = useApp()
 
-  const handleDisconnect = (accountId: string, accountName: string) => {
+  const handleDisconnect = async (accountId: string, accountName: string) => {
     if (confirm(`Are you sure you want to disconnect "${accountName}"? This will remove the rclone remote configuration.`)) {
-      disconnectAccount(accountId)
-      dispatch({ type: 'REMOVE_ACCOUNT', payload: accountId })
-      addToast('info', 'Account Disconnected', `${accountName} has been removed`)
+      try {
+        await disconnectAccount(accountId)
+        dispatch({ type: 'REMOVE_ACCOUNT', payload: accountId })
+        addToast('info', 'Account Disconnected', `${accountName} has been removed from rclone`)
+      } catch (err: any) {
+        addToast('error', 'Disconnect Failed', err.message)
+      }
     }
   }
 
@@ -30,16 +35,16 @@ export default function Dashboard() {
   }
 
   const handleRefreshStorage = async (account: typeof state.accounts[0]) => {
-    // Simulate refreshing storage info
-    addToast('info', 'Refreshing', `Fetching storage info for ${account.name}...`)
-    setTimeout(() => {
-      const newUsed = account.usedBytes + Math.floor(Math.random() * 100000000)
-      dispatch({
-        type: 'UPDATE_ACCOUNT',
-        payload: { id: account.id, updates: { usedBytes: newUsed, lastSynced: Date.now() } }
-      })
+    addToast('info', 'Refreshing', `Fetching storage info for ${account.name} from rclone...`)
+    try {
+      await refreshAccountInfo(account.id)
+      // Reload accounts from storage
+      const accounts = storage.getAccounts()
+      dispatch({ type: 'SET_ACCOUNTS', payload: accounts })
       addToast('success', 'Updated', `Storage info refreshed for ${account.name}`)
-    }, 1000)
+    } catch (err: any) {
+      addToast('error', 'Refresh Failed', err.message)
+    }
   }
 
   const totalStorage = state.accounts.reduce((acc, a) => acc + a.totalBytes, 0)

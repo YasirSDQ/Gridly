@@ -1,14 +1,17 @@
-// rclone integration service - Real & Demo modes
-import type { DriveAccount, DriveFile, TransferJob, TransferLog, RcloneConfig } from '../types'
+// rclone integration service - Uses rclone RC API
+import type { DriveAccount, DriveFile, TransferJob, RcloneConfig } from '../types'
 import { storage, generateId } from './storage'
-import { isOAuthConfigured } from '../config/google'
-import { listFiles, getDriveStorageInfo, getFolderPath } from './googleDrive'
-import { ensureValidToken } from './auth'
+import * as rcloneRC from './rcloneRC'
 
-// Active transfer intervals for simulation
+// Active transfer polling intervals
 const activeTransfers = new Map<string, ReturnType<typeof setInterval>>()
 
-// Generate rclone command string
+// Check if rclone is available
+export async function isRcloneAvailable(): Promise<boolean> {
+  return rcloneRC.isRcloneRunning()
+}
+
+// Generate rclone command string (for display purposes)
 export function generateRcloneCommand(
   sourceRemote: string,
   destRemote: string,
@@ -38,98 +41,85 @@ export function generateRcloneCommand(
   return parts.join(' ')
 }
 
-// Browse files - uses real Google Drive API if OAuth is configured
+// Browse files using rclone RC API
 export async function browseFiles(
   account: DriveAccount,
-  folderId: string = 'root'
+  folderPath: string = ''
 ): Promise<{ files: DriveFile[]; path: { id: string; name: string }[] }> {
-  if (isOAuthConfigured() && account.accessToken) {
+  const available = await isRcloneAvailable()
+  
+  if (available) {
     try {
-      // Ensure token is valid
-      const validAccount = await ensureValidToken(account)
-
-      // List files from Google Drive API
-      const result = await listFiles(validAccount.accessToken, folderId)
-
-      // Get path breadcrumb
-      let path: { id: string; name: string }[] = [{ id: 'root', name: 'My Drive' }]
-      if (folderId !== 'root') {
-        path = await getFolderPath(validAccount.accessToken, folderId)
-        path.unshift({ id: 'root', name: 'My Drive' })
-      }
-
-      // Set path for each file
-      const filesWithPath = result.files.map(file => ({
-        ...file,
-        path: folderId === 'root' ? `/${file.name}` : `/${path.map(p => p.name).join('/')}/${file.name}`,
+      const fs = `${account.rcloneRemote}:`
+      const result = await rcloneRC.listFiles(fs, folderPath, { recurse: false })
+      
+      const files: DriveFile[] = (result.list || []).map(item => ({
+        id: item.ID || item.Path || generateId(),
+        name: item.Name,
+        mimeType: item.MimeType || (item.IsDir ? 'application/vnd.google-apps.folder' : 'application/octet-stream'),
+        size: item.Size || 0,
+        modifiedTime: item.ModTime || new Date().toISOString(),
+        parents: [],
+        isFolder: item.IsDir,
+        icon: getFileIcon(item.MimeType, item.IsDir),
+        path: item.Path,
       }))
 
-      return { files: filesWithPath, path }
+      // Build path breadcrumb
+      const pathParts = folderPath ? folderPath.split('/').filter(Boolean) : []
+      const path = [
+        { id: 'root', name: account.name },
+        ...pathParts.map((part, i) => ({
+          id: pathParts.slice(0, i + 1).join('/'),
+          name: part,
+        }))
+      ]
+
+      return { files, path }
     } catch (error) {
-      console.error('Failed to browse files via API:', error)
-      // Fall through to demo mode
+      console.error('Failed to browse files via rclone:', error)
     }
   }
 
-  // Demo mode - simulated files
-  await simulateDelay(400)
+  // Demo mode - return empty
   return {
-    files: generateDemoFiles(folderId),
-    path: [{ id: 'root', name: 'My Drive' }],
+    files: [],
+    path: [{ id: 'root', name: account.name }],
   }
 }
 
-// Generate demo files for when OAuth is not configured
-function generateDemoFiles(path: string): DriveFile[] {
-  const folders: DriveFile[] = [
-    { id: generateId(), name: 'Documents', mimeType: 'application/vnd.google-apps.folder', size: 0, modifiedTime: '2024-12-15T10:30:00Z', parents: [], isFolder: true, icon: 'fa-folder', path: `${path}/Documents` },
-    { id: generateId(), name: 'Photos', mimeType: 'application/vnd.google-apps.folder', size: 0, modifiedTime: '2024-12-10T14:20:00Z', parents: [], isFolder: true, icon: 'fa-folder', path: `${path}/Photos` },
-    { id: generateId(), name: 'Projects', mimeType: 'application/vnd.google-apps.folder', size: 0, modifiedTime: '2024-12-20T09:15:00Z', parents: [], isFolder: true, icon: 'fa-folder', path: `${path}/Projects` },
-    { id: generateId(), name: 'Work', mimeType: 'application/vnd.google-apps.folder', size: 0, modifiedTime: '2024-12-18T16:45:00Z', parents: [], isFolder: true, icon: 'fa-folder', path: `${path}/Work` },
-    { id: generateId(), name: 'Backups', mimeType: 'application/vnd.google-apps.folder', size: 0, modifiedTime: '2024-11-30T08:00:00Z', parents: [], isFolder: true, icon: 'fa-folder', path: `${path}/Backups` },
-  ]
-
-  const files: DriveFile[] = [
-    { id: generateId(), name: 'report-2024.pdf', mimeType: 'application/pdf', size: 2456789, modifiedTime: '2024-12-20T10:00:00Z', parents: [], isFolder: false, icon: 'fa-file-pdf', path: `${path}/report-2024.pdf` },
-    { id: generateId(), name: 'presentation.pptx', mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', size: 8934521, modifiedTime: '2024-12-19T15:30:00Z', parents: [], isFolder: false, icon: 'fa-file-powerpoint', path: `${path}/presentation.pptx` },
-    { id: generateId(), name: 'budget.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', size: 1234567, modifiedTime: '2024-12-18T09:45:00Z', parents: [], isFolder: false, icon: 'fa-file-excel', path: `${path}/budget.xlsx` },
-    { id: generateId(), name: 'notes.txt', mimeType: 'text/plain', size: 45678, modifiedTime: '2024-12-22T14:20:00Z', parents: [], isFolder: false, icon: 'fa-file-lines', path: `${path}/notes.txt` },
-    { id: generateId(), name: 'video-demo.mp4', mimeType: 'video/mp4', size: 156789012, modifiedTime: '2024-12-17T16:00:00Z', parents: [], isFolder: false, icon: 'fa-file-video', path: `${path}/video-demo.mp4` },
-  ]
-
-  return [...folders, ...files]
-}
-
-// Get folder size
+// Get folder size using rclone RC API
 export async function getFolderSize(
   account: DriveAccount,
-  _path: string
+  path: string
 ): Promise<{ totalBytes: number; fileCount: number; folderCount: number }> {
-  if (isOAuthConfigured() && account.accessToken) {
+  const available = await isRcloneAvailable()
+  
+  if (available) {
     try {
-      const validAccount = await ensureValidToken(account)
-      const storageInfo = await getDriveStorageInfo(validAccount.accessToken)
-      await simulateDelay(400)
-      return {
-        totalBytes: Math.floor(storageInfo.usedBytes * 0.1), // Estimate folder size
-        fileCount: Math.floor(Math.random() * 5000) + 100,
-        folderCount: Math.floor(Math.random() * 500) + 10,
-      }
+      const fs = `${account.rcloneRemote}:`
+      const result = await rcloneRC.listFiles(fs, path, { recurse: true })
+      
+      const files = result.list || []
+      const totalBytes = files.reduce((sum, f) => sum + (f.Size || 0), 0)
+      const fileCount = files.filter(f => !f.IsDir).length
+      const folderCount = files.filter(f => f.IsDir).length
+
+      return { totalBytes, fileCount, folderCount }
     } catch (error) {
       console.error('Failed to get folder size:', error)
     }
   }
 
   // Demo mode
-  await simulateDelay(400)
   return {
-    totalBytes: Math.floor(Math.random() * 5000000000) + 100000000,
-    fileCount: Math.floor(Math.random() * 5000) + 100,
-    folderCount: Math.floor(Math.random() * 500) + 10,
+    totalBytes: 0,
+    fileCount: 0,
+    folderCount: 0,
   }
 }
 
-// Create and start a transfer job
+// Create and start a transfer job using rclone RC API
 export async function createTransfer(
   sourceAccount: DriveAccount,
   destAccount: DriveAccount,
@@ -171,11 +161,9 @@ export async function createTransfer(
     ),
     logs: [
       { timestamp: Date.now(), level: 'info', message: `Transfer job created: ${operation} "${sourcePath}" → "${destPath}"` },
-      { timestamp: Date.now(), level: 'info', message: `Source: ${sourceAccount.rcloneRemote} (${sourceAccount.email})` },
-      { timestamp: Date.now(), level: 'info', message: `Destination: ${destAccount.rcloneRemote} (${destAccount.email})` },
+      { timestamp: Date.now(), level: 'info', message: `Source: ${sourceAccount.rcloneRemote}: (${sourceAccount.email})` },
+      { timestamp: Date.now(), level: 'info', message: `Destination: ${destAccount.rcloneRemote}: (${destAccount.email})` },
       { timestamp: Date.now(), level: 'info', message: `Total size: ${formatBytes(folderInfo.totalBytes)} (${folderInfo.fileCount} files)` },
-      { timestamp: Date.now(), level: isOAuthConfigured() ? 'info' : 'warn', message: isOAuthConfigured() ? 'Using real Google Drive API' : 'Demo mode - simulated transfer' },
-      { timestamp: Date.now(), level: 'debug', message: `Command: rclone ${operation} "${sourceAccount.rcloneRemote}:${sourcePath}" "${destAccount.rcloneRemote}:${destPath}"` },
     ],
   }
 
@@ -183,69 +171,156 @@ export async function createTransfer(
   return transfer
 }
 
-// Start a queued transfer
-export function startTransfer(transferId: string): void {
+// Start a queued transfer using rclone RC API
+export async function startTransfer(transferId: string): Promise<void> {
   const transfers = storage.getTransfers()
   const transfer = transfers.find(t => t.id === transferId)
   if (!transfer || transfer.status !== 'queued') return
 
-  transfer.status = 'running'
-  transfer.startedAt = Date.now()
-  transfer.logs.push({ timestamp: Date.now(), level: 'info', message: 'Transfer started - rclone process initiated' })
-  transfer.logs.push({ timestamp: Date.now(), level: 'info', message: 'Using server-side copy (no local bandwidth)' })
-  storage.saveTransfers(transfers)
+  const available = await isRcloneAvailable()
+  
+  if (available) {
+    try {
+      const sourceAccount = storage.getAccounts().find(a => a.id === transfer.sourceAccountId)
+      const destAccount = storage.getAccounts().find(a => a.id === transfer.destAccountId)
+      
+      if (!sourceAccount || !destAccount) {
+        throw new Error('Source or destination account not found')
+      }
 
-  const interval = setInterval(() => {
-    const currentTransfers = storage.getTransfers()
-    const current = currentTransfers.find(t => t.id === transferId)
-    if (!current || current.status !== 'running') {
-      clearInterval(interval)
-      activeTransfers.delete(transferId)
-      return
+      const srcFs = `${sourceAccount.rcloneRemote}:${transfer.sourcePath}`
+      const dstFs = `${destAccount.rcloneRemote}:${transfer.destPath}`
+
+      // Start the transfer via rclone RC API
+      let jobResult
+      switch (transfer.operation) {
+        case 'copy':
+          jobResult = await rcloneRC.syncCopy(srcFs, dstFs)
+          break
+        case 'move':
+          jobResult = await rcloneRC.syncMove(srcFs, dstFs)
+          break
+        case 'sync':
+          jobResult = await rcloneRC.syncSync(srcFs, dstFs)
+          break
+      }
+
+      // Update transfer with job ID
+      transfer.status = 'running'
+      transfer.startedAt = Date.now()
+      transfer.logs.push({ timestamp: Date.now(), level: 'info', message: `rclone job started (ID: ${jobResult.jobid})` })
+      storage.saveTransfers(transfers)
+
+      // Poll for progress
+      const interval = setInterval(async () => {
+        const currentTransfers = storage.getTransfers()
+        const current = currentTransfers.find(t => t.id === transferId)
+        if (!current || current.status !== 'running') {
+          clearInterval(interval)
+          activeTransfers.delete(transferId)
+          return
+        }
+
+        try {
+          // Get job status
+          const jobStatus = await rcloneRC.getJobStatus(jobResult.jobid)
+          
+          if (jobStatus.finished) {
+            const updates: Partial<TransferJob> = {
+              status: jobStatus.success ? 'completed' : 'error',
+              progress: 100,
+              completedAt: Date.now(),
+              error: jobStatus.error || null,
+            }
+            
+            if (jobStatus.success) {
+              current.logs.push({ timestamp: Date.now(), level: 'info', message: '✓ Transfer completed successfully' })
+            } else {
+              current.logs.push({ timestamp: Date.now(), level: 'error', message: `✗ Transfer failed: ${jobStatus.error}` })
+            }
+
+            storage.updateTransfer(transferId, updates)
+            clearInterval(interval)
+            activeTransfers.delete(transferId)
+          } else {
+            // Get stats for progress
+            const stats = await rcloneRC.getStats()
+            const progress = current.totalBytes > 0 
+              ? Math.min(99, (stats.bytes / current.totalBytes) * 100)
+              : 0
+
+            const updates: Partial<TransferJob> = {
+              progress,
+              transferredBytes: stats.bytes,
+              transferredFiles: stats.transferredFiles,
+              speed: stats.speed,
+              eta: stats.eta,
+            }
+
+            storage.updateTransfer(transferId, updates)
+          }
+        } catch (error: any) {
+          console.error('Error polling transfer status:', error)
+        }
+      }, 2000)
+
+      activeTransfers.set(transferId, interval)
+    } catch (error: any) {
+      transfer.status = 'error'
+      transfer.error = error.message
+      transfer.logs.push({ timestamp: Date.now(), level: 'error', message: `Failed to start transfer: ${error.message}` })
+      storage.saveTransfers(transfers)
     }
+  } else {
+    // Demo mode - simulate transfer
+    transfer.status = 'running'
+    transfer.startedAt = Date.now()
+    transfer.logs.push({ timestamp: Date.now(), level: 'warn', message: 'rclone not available - running in demo mode' })
+    storage.saveTransfers(transfers)
 
-    const progressIncrement = Math.random() * 3 + 0.5
-    const newProgress = Math.min(current.progress + progressIncrement, 100)
-    const bytesTransferred = Math.floor((newProgress / 100) * current.totalBytes)
-    const filesTransferred = Math.floor((newProgress / 100) * current.totalFiles)
-    const speed = Math.floor(Math.random() * 200 + 150) * 1024 * 1024
-    const remainingBytes = current.totalBytes - bytesTransferred
-    const eta = speed > 0 ? Math.floor(remainingBytes / speed) : 0
+    const interval = setInterval(() => {
+      const currentTransfers = storage.getTransfers()
+      const current = currentTransfers.find(t => t.id === transferId)
+      if (!current || current.status !== 'running') {
+        clearInterval(interval)
+        activeTransfers.delete(transferId)
+        return
+      }
 
-    const updates: Partial<TransferJob> = {
-      progress: newProgress,
-      transferredBytes: bytesTransferred,
-      transferredFiles: filesTransferred,
-      speed,
-      eta,
-    }
+      const progressIncrement = Math.random() * 3 + 0.5
+      const newProgress = Math.min(current.progress + progressIncrement, 100)
+      const bytesTransferred = Math.floor((newProgress / 100) * current.totalBytes)
+      const filesTransferred = Math.floor((newProgress / 100) * current.totalFiles)
+      const speed = Math.floor(Math.random() * 200 + 150) * 1024 * 1024
+      const remainingBytes = current.totalBytes - bytesTransferred
+      const eta = speed > 0 ? Math.floor(remainingBytes / speed) : 0
 
-    if (Math.random() > 0.7) {
-      current.logs.push({
-        timestamp: Date.now(),
-        level: 'info',
-        message: `Transferred: ${formatBytes(bytesTransferred)} / ${formatBytes(current.totalBytes)} (${Math.round(newProgress)}%) - ${filesTransferred}/${current.totalFiles} files`,
-      })
-    }
+      const updates: Partial<TransferJob> = {
+        progress: newProgress,
+        transferredBytes: bytesTransferred,
+        transferredFiles: filesTransferred,
+        speed,
+        eta,
+      }
 
-    if (newProgress >= 100) {
-      updates.status = 'completed'
-      updates.completedAt = Date.now()
-      updates.progress = 100
-      updates.speed = 0
-      updates.eta = 0
-      updates.transferredBytes = current.totalBytes
-      updates.transferredFiles = current.totalFiles
-      current.logs.push({ timestamp: Date.now(), level: 'info', message: '✓ Transfer completed successfully' })
-      current.logs.push({ timestamp: Date.now(), level: 'info', message: `Verification: All ${current.totalFiles} files checksummed and verified` })
-      clearInterval(interval)
-      activeTransfers.delete(transferId)
-    }
+      if (newProgress >= 100) {
+        updates.status = 'completed'
+        updates.completedAt = Date.now()
+        updates.progress = 100
+        updates.speed = 0
+        updates.eta = 0
+        updates.transferredBytes = current.totalBytes
+        updates.transferredFiles = current.totalFiles
+        current.logs.push({ timestamp: Date.now(), level: 'info', message: '✓ Transfer completed successfully (demo)' })
+        clearInterval(interval)
+        activeTransfers.delete(transferId)
+      }
 
-    storage.updateTransfer(transferId, updates)
-  }, 1000)
+      storage.updateTransfer(transferId, updates)
+    }, 1000)
 
-  activeTransfers.set(transferId, interval)
+    activeTransfers.set(transferId, interval)
+  }
 }
 
 // Pause a running transfer
@@ -308,43 +383,41 @@ export function deleteTransfer(transferId: string): void {
 
 // Test rclone remote connection
 export async function testRemote(account: DriveAccount): Promise<{ success: boolean; message: string }> {
-  if (isOAuthConfigured() && account.accessToken) {
+  const available = await isRcloneAvailable()
+  
+  if (available) {
     try {
-      const validAccount = await ensureValidToken(account)
-      await getDriveStorageInfo(validAccount.accessToken)
+      const fs = `${account.rcloneRemote}:`
+      await rcloneRC.getAbout(fs)
       return {
         success: true,
-        message: `Successfully connected to ${account.rcloneRemote} via Google Drive API`,
+        message: `Successfully connected to ${account.rcloneRemote}:`,
       }
     } catch (error: any) {
       return {
         success: false,
-        message: `Failed to connect to ${account.rcloneRemote}: ${error.message}`,
+        message: `Failed to connect: ${error.message}`,
       }
     }
   }
 
-  // Demo mode
-  await simulateDelay(800)
   return {
-    success: true,
-    message: `Demo: Successfully connected to ${account.rcloneRemote}`,
+    success: false,
+    message: 'rclone daemon not running',
   }
 }
 
 // Generate rclone config for connected accounts
 export function generateRcloneConfig(): string {
   const accounts = storage.getAccounts()
-  let config = '# rclone configuration generated by Gridly\n'
-  config += '# Add this to your rclone.conf file\n\n'
+  let config = '# rclone configuration\n'
+  config += '# Generated by Gridly\n\n'
 
   accounts.forEach(account => {
     config += `[${account.rcloneRemote}]\n`
     config += `type = drive\n`
-    config += `client_id = ${isOAuthConfigured() ? 'YOUR_CLIENT_ID' : 'not_configured'}\n`
     config += `scope = drive\n`
-    config += `token = {"access_token":"${account.accessToken}","token_type":"Bearer","refresh_token":"${account.refreshToken}","expiry":"${new Date(account.tokenExpiry).toISOString()}"}\n`
-    config += `team_drive = \n`
+    config += `# Token is managed by rclone\n`
     config += `\n`
   })
 
@@ -368,8 +441,21 @@ export function formatDuration(seconds: number): string {
   return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`
 }
 
-function simulateDelay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
+// Get file icon based on MIME type
+function getFileIcon(mimeType?: string, isDir?: boolean): string {
+  if (isDir) return 'fa-folder'
+  if (!mimeType) return 'fa-file'
+  if (mimeType.includes('pdf')) return 'fa-file-pdf'
+  if (mimeType.includes('word') || mimeType.includes('document')) return 'fa-file-word'
+  if (mimeType.includes('sheet') || mimeType.includes('excel')) return 'fa-file-excel'
+  if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) return 'fa-file-powerpoint'
+  if (mimeType.includes('image')) return 'fa-file-image'
+  if (mimeType.includes('video')) return 'fa-file-video'
+  if (mimeType.includes('audio')) return 'fa-file-audio'
+  if (mimeType.includes('zip') || mimeType.includes('archive')) return 'fa-file-zipper'
+  if (mimeType.includes('text')) return 'fa-file-lines'
+  if (mimeType.includes('json') || mimeType.includes('javascript')) return 'fa-file-code'
+  return 'fa-file'
 }
 
 // Cleanup all active transfers
@@ -377,6 +463,3 @@ export function cleanupTransfers(): void {
   activeTransfers.forEach((interval) => clearInterval(interval))
   activeTransfers.clear()
 }
-
-// Export for use in other files
-export { isOAuthConfigured }

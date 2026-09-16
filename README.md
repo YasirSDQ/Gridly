@@ -1,32 +1,48 @@
 # Gridly - Advanced Google Drive Manager
 
-A modern, high-tech web application for managing multiple Google Drive accounts with real OAuth 2.0 authentication and rclone integration.
+A modern, high-tech web application for managing multiple Google Drive accounts using **rclone** as the engine. Gridly connects to rclone's Remote Control (RC) API to provide a beautiful interface for browsing, transferring, and managing your Google Drive files.
 
 ![Gridly](https://img.shields.io/badge/Gridly-v2.0-indigo)
-![OAuth 2.0](https://img.shields.io/badge/OAuth-2.0-green)
-![rclone](https://img.shields.io/badge/rclone-1.65+-blue)
+![rclone](https://img.shields.io/badge/rclone-1.60+-blue)
+![RC API](https://img.shields.io/badge/RC%20API-HTTP-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 
-## 🚀 Features
+## 🚀 How It Works
 
-### 🔐 Real Google OAuth 2.0 Authentication
-- **Actual Google account authentication** using OAuth 2.0 with PKCE
-- Secure token storage with automatic refresh
-- No fake accounts or demo data - connect your real Google Drive
-- Support for multiple Google accounts
+Gridly uses **rclone** as the backend engine:
 
-### ⚡ rclone Integration
-- **Server-side transfers** between Google Drive accounts
-- Zero bandwidth usage on your device
-- Real rclone command generation
-- Transfer monitoring with live progress
-- Support for copy, move, and sync operations
+1. **You run rclone** in Remote Control (RC) mode: `rclone rcd`
+2. **Gridly connects** to rclone via its HTTP API (default: `http://localhost:5572`)
+3. **rclone handles** all OAuth authentication with Google
+4. **Gridly provides** a beautiful UI for browsing and managing files
+5. **Transfers happen** server-side via Google's infrastructure (no download/upload!)
 
-### 📁 Google Drive API Integration
-- Browse real files and folders from your Google Drive
-- Accurate storage information
-- File metadata and search capabilities
-- Breadcrumb navigation
+## ✨ Features
+
+### 🔌 rclone RC API Integration
+- **Real rclone integration** via Remote Control HTTP API
+- **Automatic connection detection** - Gridly checks if rclone is running
+- **Live status monitoring** - See rclone connection status in real-time
+- **Full API coverage** - Browse, transfer, sync, and manage files
+
+### 🔐 Google Drive via rclone
+- **rclone handles OAuth** - Secure authentication through rclone's built-in flow
+- **Multiple accounts** - Connect unlimited Google Drive accounts
+- **Token management** - rclone securely stores and refreshes tokens
+- **Server-side transfers** - Zero bandwidth usage on your device
+
+### 📁 File Management
+- **Browse files** via rclone RC API (`operations/list`)
+- **Real-time storage info** via `operations/about`
+- **Folder navigation** with breadcrumb trail
+- **File selection** for targeted transfers
+
+### ⚡ Transfer Engine
+- **Copy/Move/Sync** operations via rclone RC API
+- **Real-time progress** monitoring via `core/stats`
+- **Job tracking** via `job/status`
+- **Pause/Resume/Cancel** transfers
+- **Detailed logs** for each transfer
 
 ### 🎨 Modern UI/UX
 - Dark theme with glass-morphism effects
@@ -34,79 +50,63 @@ A modern, high-tech web application for managing multiple Google Drive accounts 
 - Responsive design for all devices
 - Real-time transfer progress updates
 
-### 🛠️ Advanced Features
-- Transfer queue management
-- Pause/resume/cancel transfers
-- rclone configuration export
-- Detailed transfer logs
-- Connection testing
-
 ## 📋 Prerequisites
 
-- Node.js 18+ and npm
+- **Node.js 18+** and npm
+- **rclone 1.60+** installed on your system
 - A Google account
-- (Optional) rclone installed locally for advanced features
 
 ## 🔧 Setup
 
-### 1. Clone the repository
+### 1. Install rclone
+
+**macOS:**
+```bash
+brew install rclone
+```
+
+**Linux:**
+```bash
+curl https://rclone.org/install.sh | sudo bash
+```
+
+**Windows:**
+Download from [rclone.org/downloads](https://rclone.org/downloads/)
+
+### 2. Clone and Install Gridly
 
 ```bash
 git clone <repository-url>
 cd gridly
-```
-
-### 2. Install dependencies
-
-```bash
 npm install
 ```
 
-### 3. Configure Google OAuth
+### 3. Start rclone RC Daemon
 
-#### 3.1 Create Google Cloud Project
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select existing
-3. Enable **Google Drive API**:
-   - Navigate to "APIs & Services" > "Library"
-   - Search for "Google Drive API" and enable it
-
-#### 3.2 Configure OAuth Consent Screen
-
-1. Go to "APIs & Services" > "OAuth consent screen"
-2. Choose "External" user type
-3. Fill in required app information:
-   - App name: Gridly
-   - User support email: your email
-   - Developer contact: your email
-4. Add scopes:
-   - `https://www.googleapis.com/auth/drive`
-   - `https://www.googleapis.com/auth/drive.metadata.readonly`
-   - `openid`, `email`, `profile`
-5. Add test users (your Google email)
-
-#### 3.3 Create OAuth Credentials
-
-1. Go to "APIs & Services" > "Credentials"
-2. Click "Create Credentials" > "OAuth client ID"
-3. Application type: "Web application"
-4. Add authorized redirect URIs:
-   - `http://localhost:5173/auth/callback` (development)
-   - `https://your-domain.com/auth/callback` (production)
-5. Copy the **Client ID**
-
-#### 3.4 Configure Environment
-
-Create a `.env` file in the project root:
+Open a terminal and run:
 
 ```bash
-VITE_GOOGLE_CLIENT_ID=your_client_id_here.apps.googleusercontent.com
+rclone rcd --rc-addr=localhost:5572 --rc-no-auth
 ```
 
-Replace `your_client_id_here.apps.googleusercontent.com` with your actual Client ID.
+**With authentication (recommended for production):**
+```bash
+rclone rcd --rc-addr=localhost:5572 --rc-user=gridly --rc-pass=yourpassword
+```
 
-### 4. Start Development Server
+**Important:** Keep this terminal running while using Gridly.
+
+### 4. Configure Gridly (Optional)
+
+If you're using rclone with authentication, create a `.env` file:
+
+```bash
+VITE_RCLONE_URL=http://localhost:5572
+VITE_RCLONE_USERNAME=gridly
+VITE_RCLONE_PASSWORD=yourpassword
+```
+
+### 5. Start Gridly
 
 ```bash
 npm run dev
@@ -116,113 +116,146 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ## 🎯 Usage
 
-### Connecting Accounts
+### Connect Google Drive
 
-1. Click "Connect Drive" or "Add New Account"
-2. You'll be redirected to Google OAuth
-3. Sign in and grant permissions
-4. You'll be redirected back to Gridly
-5. Your account appears in the dashboard
+1. Click **"Connect Drive"** in Gridly
+2. Enter a remote name (e.g., `mydrive`)
+3. Choose access scope (default: `drive` for full access)
+4. Click **"Connect via rclone"**
+5. **rclone opens a browser** for Google OAuth
+6. Sign in and grant permissions
+7. Your account appears in the dashboard!
 
-### Browsing Files
+### Browse Files
 
-1. Click "Browse" on any connected account
+1. Click **"Browse"** on any connected account
 2. Navigate through your Google Drive folders
-3. Select files/folders for transfer
+3. Files are listed via rclone RC API (`operations/list`)
+4. Select files/folders for transfer
 
-### Creating Transfers
+### Create Transfers
 
-1. Click "New Transfer"
+1. Click **"New Transfer"**
 2. Select source and destination accounts
 3. Choose operation type (copy/move/sync)
-4. Specify folder paths (use "root" or folder IDs)
-5. Configure advanced options
-6. Click "Start Transfer"
+4. Specify folder paths
+5. Click **"Start Transfer"**
+6. Gridly calls rclone RC API (`sync/copy`, `sync/move`, or `sync/sync`)
+7. Monitor progress in real-time via `core/stats`
 
-### Monitoring Transfers
+### Monitor Transfers
 
 - View real-time progress in the Transfer Manager
 - Pause, resume, or cancel transfers
 - View detailed logs for each transfer
+- See transfer speed and ETA
 
-### Exporting rclone Config
+### Export rclone Config
 
 1. Go to Settings
-2. Click "Copy rclone Config to Clipboard"
+2. Click **"Copy rclone Config to Clipboard"**
 3. Paste into your `~/.config/rclone/rclone.conf`
 
 ## 🏗️ Architecture
 
 ```
-src/
-├── components/          # React components
-│   ├── AuthModal.tsx   # OAuth authentication UI
-│   ├── Dashboard.tsx   # Account management
-│   ├── FileBrowser.tsx # File browser with real API
-│   ├── TransferManager.tsx # Transfer monitoring
-│   └── ...
-├── services/           # Business logic
-│   ├── auth.ts        # Real OAuth 2.0 flow
-│   ├── googleDrive.ts # Google Drive API calls
-│   ├── rclone.ts      # rclone integration
-│   └── storage.ts     # localStorage persistence
-├── context/           # React Context
-│   └── AppContext.tsx # Global state management
-├── config/            # Configuration
-│   └── google.ts     # OAuth configuration
-└── types.ts          # TypeScript types
+┌─────────────────┐
+│   Gridly Web    │
+│   (React UI)    │
+└────────┬────────┘
+         │ HTTP API
+         │ (JSON-RPC)
+         ▼
+┌─────────────────┐
+│  rclone rcd     │
+│  (RC Daemon)    │
+└────────┬────────┘
+         │ OAuth 2.0
+         │ + API calls
+         ▼
+┌─────────────────┐
+│  Google Drive   │
+│  (Cloud API)    │
+└─────────────────┘
 ```
+
+### Key Components
+
+- **`src/services/rcloneRC.ts`** - rclone RC API client
+- **`src/services/rclone.ts`** - High-level rclone operations
+- **`src/services/auth.ts`** - Account management via rclone
+- **`src/components/AuthModal.tsx`** - rclone-based OAuth flow
+- **`src/components/FileBrowser.tsx`** - File browser using rclone RC API
+- **`src/components/TransferManager.tsx`** - Transfer monitoring
 
 ## 🔒 Security
 
-- **OAuth 2.0 with PKCE**: Industry-standard authentication
-- **Token Storage**: Access tokens stored in localStorage (consider httpOnly cookies for production)
-- **No Server Required**: All operations happen client-side
-- **CORS Support**: Google's OAuth endpoints support browser-based apps
+- **rclone manages tokens** - Gridly never sees your Google credentials
+- **OAuth 2.0** - Industry-standard authentication via rclone
+- **Local communication** - Gridly talks to rclone on localhost
+- **Optional authentication** - Secure rclone RC API with username/password
 
 ### Production Considerations
 
 For production deployment:
-1. Use HTTPS (required by Google OAuth)
-2. Submit your app for Google verification
-3. Consider using a backend for token storage
-4. Implement proper error handling
-5. Add rate limiting
-
-## 🧪 Demo Mode
-
-If OAuth is not configured, Gridly runs in **Demo Mode**:
-- Simulated file browsing
-- Simulated transfers with realistic progress
-- No real Google account connection
-
-The header shows "Demo Mode" when OAuth is not configured.
-
-## 📊 API Limits
-
-Google Drive API quotas:
-- 12,000 queries per 100 seconds per user
-- 1,000,000,000 queries per day
-
-Gridly is designed to stay well within these limits.
+1. Use HTTPS for rclone RC API
+2. Enable rclone RC authentication (`--rc-user` and `--rc-pass`)
+3. Consider running rclone on a secure network
+4. Use environment variables for credentials
 
 ## 🐛 Troubleshooting
 
-### "redirect_uri_mismatch" Error
-- Ensure redirect URI in Google Cloud Console exactly matches your app's URL
-- Check for trailing slashes
+### "rclone daemon not detected"
 
-### "access_denied" Error
-- Add your Google account to test users in OAuth consent screen
-- For production, submit app for verification
+**Solution:** Make sure rclone is running:
+```bash
+rclone rcd --rc-addr=localhost:5572
+```
 
-### "invalid_client" Error
-- Verify Client ID in `.env` file
-- Check for extra spaces or quotes
+Check if it's accessible:
+```bash
+curl http://localhost:5572/core/version
+```
 
-### Token Refresh Fails
-- Disconnect and reconnect the account
-- Check if refresh token is still valid
+### "Failed to connect to rclone"
+
+**Solutions:**
+1. Verify rclone is running
+2. Check the RC address matches (default: `localhost:5572`)
+3. If using authentication, verify credentials in `.env`
+4. Check firewall settings
+
+### "OAuth flow doesn't start"
+
+**Solutions:**
+1. Make sure rclone can open a browser (or provide the URL manually)
+2. Check rclone logs for errors
+3. Try running `rclone config` manually first to test
+
+### "Transfer fails"
+
+**Solutions:**
+1. Check rclone logs for detailed error messages
+2. Verify both accounts are properly connected
+3. Ensure you have sufficient storage space
+4. Check Google Drive API quotas
+
+## 📊 rclone RC API Endpoints Used
+
+Gridly uses these rclone RC API endpoints:
+
+- `core/version` - Check rclone version
+- `core/stats` - Get transfer statistics
+- `config/create` - Create new remote (triggers OAuth)
+- `config/delete` - Delete remote
+- `config/listremotes` - List all remotes
+- `operations/list` - List files in a remote
+- `operations/about` - Get storage information
+- `sync/copy` - Copy between remotes
+- `sync/move` - Move between remotes
+- `sync/sync` - Sync between remotes
+- `job/status` - Get job status
+- `job/list` - List active jobs
 
 ## 🚀 Deployment
 
@@ -233,13 +266,6 @@ npm run build
 ```
 
 The output will be in the `dist/` directory.
-
-### Deploy to Vercel/Netlify
-
-1. Connect your repository
-2. Set environment variable: `VITE_GOOGLE_CLIENT_ID`
-3. Add redirect URI: `https://your-app.vercel.app/auth/callback`
-4. Deploy!
 
 ### Docker Deployment
 
@@ -255,12 +281,15 @@ COPY --from=0 /app/dist /usr/share/nginx/html
 EXPOSE 80
 ```
 
+**Note:** You'll also need to run rclone in a separate container or on the host.
+
 ## 📝 Environment Variables
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `VITE_GOOGLE_CLIENT_ID` | Google OAuth Client ID | Yes (for real auth) |
-| `VITE_RCLONE_SERVE_URL` | rclone RC API URL | No (optional) |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `VITE_RCLONE_URL` | rclone RC API URL | `http://localhost:5572` |
+| `VITE_RCLONE_USERNAME` | rclone RC username | (empty) |
+| `VITE_RCLONE_PASSWORD` | rclone RC password | (empty) |
 
 ## 🤝 Contributing
 
@@ -280,10 +309,10 @@ MIT License - see LICENSE file for details
 ## 📞 Support
 
 For issues and questions:
-1. Check the [SETUP_GUIDE.md](./SETUP_GUIDE.md) for detailed setup instructions
-2. Review the troubleshooting section above
+1. Check the troubleshooting section above
+2. Review rclone documentation: https://rclone.org/docs/
 3. Open an issue on GitHub
 
 ---
 
-**Built with ❤️ using React, TypeScript, and real Google OAuth 2.0**
+**Built with ❤️ using React, TypeScript, and rclone**

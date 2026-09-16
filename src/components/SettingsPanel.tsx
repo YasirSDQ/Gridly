@@ -1,13 +1,32 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { storage } from '../services/storage'
-import { generateRcloneConfig, isOAuthConfigured } from '../services/rclone'
+import { generateRcloneConfig, isRcloneAvailable } from '../services/rclone'
+import * as rcloneRC from '../services/rcloneRC'
 import type { RcloneConfig } from '../types'
 
 export default function SettingsPanel() {
   const { state, dispatch, addToast } = useApp()
   const [config, setConfig] = useState<RcloneConfig>(state.rcloneConfig)
   const [saving, setSaving] = useState(false)
+  const [rcloneConnected, setRcloneConnected] = useState(false)
+  const [rcloneVersion, setRcloneVersion] = useState('')
+
+  useEffect(() => {
+    const checkRclone = async () => {
+      const connected = await isRcloneAvailable()
+      setRcloneConnected(connected)
+      if (connected) {
+        try {
+          const version = await rcloneRC.getVersion()
+          setRcloneVersion(version.version)
+        } catch {}
+      }
+    }
+    checkRclone()
+    const interval = setInterval(checkRclone, 5000)
+    return () => clearInterval(interval)
+  }, [])
 
   const handleSave = () => {
     setSaving(true)
@@ -234,15 +253,15 @@ export default function SettingsPanel() {
             </h3>
             <div className="space-y-4">
               <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/30">
-                <div className={`w-2 h-2 rounded-full mt-1.5 ${isOAuthConfigured() ? 'bg-green-400' : 'bg-yellow-400'}`} />
+                <div className={`w-2 h-2 rounded-full mt-1.5 ${rcloneConnected ? 'bg-green-400' : 'bg-yellow-400'}`} />
                 <div>
                   <p className="text-sm text-white font-medium">
-                    {isOAuthConfigured() ? 'OAuth Configured' : 'OAuth Not Configured'}
+                    {rcloneConnected ? `rclone Connected (v${rcloneVersion})` : 'rclone Not Connected'}
                   </p>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    {isOAuthConfigured()
-                      ? 'Real Google Drive API calls are active'
-                      : 'Using demo mode. Configure OAuth for real accounts.'}
+                    {rcloneConnected
+                      ? 'rclone daemon is running and accessible via RC API'
+                      : 'Start rclone with: rclone rcd --rc-addr=localhost:5572'}
                   </p>
                 </div>
               </div>

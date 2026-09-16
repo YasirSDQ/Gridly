@@ -1,11 +1,23 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
-import { isOAuthConfigured } from '../services/auth'
+import { isRcloneRunning } from '../services/auth'
 import type { ViewMode } from '../types'
 
 export default function Header() {
   const { state, dispatch, setView } = useApp()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [rcloneConnected, setRcloneConnected] = useState(false)
+
+  // Check rclone connection status
+  useEffect(() => {
+    const checkConnection = async () => {
+      const connected = await isRcloneRunning()
+      setRcloneConnected(connected)
+    }
+    checkConnection()
+    const interval = setInterval(checkConnection, 5000)
+    return () => clearInterval(interval)
+  }, [])
 
   const navItems: { id: ViewMode; label: string; icon: string }[] = [
     { id: 'home', label: 'Home', icon: 'fa-house' },
@@ -62,17 +74,17 @@ export default function Header() {
           {/* Status & Actions */}
           <div className="hidden md:flex items-center gap-4">
             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${
-              isOAuthConfigured() 
+              rcloneConnected 
                 ? 'bg-green-500/10 border-green-500/20' 
                 : 'bg-yellow-500/10 border-yellow-500/20'
             }`}>
               <div className={`w-2 h-2 rounded-full animate-pulse ${
-                isOAuthConfigured() ? 'bg-green-400' : 'bg-yellow-400'
+                rcloneConnected ? 'bg-green-400' : 'bg-yellow-400'
               }`} />
               <span className={`text-xs font-medium ${
-                isOAuthConfigured() ? 'text-green-400' : 'text-yellow-400'
+                rcloneConnected ? 'text-green-400' : 'text-yellow-400'
               }`}>
-                {isOAuthConfigured() ? 'OAuth Active' : 'Demo Mode'}
+                {rcloneConnected ? 'rclone Connected' : 'rclone Offline'}
               </span>
             </div>
             {state.accounts.length > 0 && (

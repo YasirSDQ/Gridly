@@ -18,8 +18,8 @@ export default function Features() {
     },
     {
       icon: 'fa-shield-halved',
-      title: 'Real OAuth 2.0 + PKCE',
-      description: 'Authenticate with your actual Google account using industry-standard OAuth 2.0 with PKCE. No fake accounts, no demo data.',
+      title: 'rclone OAuth Integration',
+      description: 'Connect your real Google account through rclone\'s built-in OAuth flow. Secure token management handled entirely by rclone.',
       color: 'from-green-500 to-emerald-500',
       bgColor: 'bg-green-500/10',
       borderColor: 'border-green-500/20',

@@ -34,14 +34,14 @@ export default function FileBrowser() {
     }
   }
 
-  const navigateToFolder = (folderId: string, folderName?: string) => {
-    const newPath = folderId === 'root' 
-      ? [{ id: 'root', name: 'My Drive' }]
-      : [...path, { id: folderId, name: folderName || folderId }]
-    setPath(newPath)
-    dispatch({ type: 'SET_BROWSER', payload: { accountId: state.browserAccountId, path: folderId } })
+  const navigateToFolder = (folderPath: string, folderName?: string) => {
+    const displayPath = folderPath === '' || folderPath === 'root'
+      ? [{ id: 'root', name: account?.name || 'My Drive' }]
+      : [...path, { id: folderPath, name: folderName || folderPath }]
+    setPath(displayPath)
+    dispatch({ type: 'SET_BROWSER', payload: { accountId: state.browserAccountId, path: folderPath } })
     setSelectedFiles(new Set())
-    loadFiles(folderId)
+    loadFiles(folderPath)
   }
 
   const navigateToPathIndex = (index: number) => {

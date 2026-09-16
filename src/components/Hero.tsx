@@ -26,7 +26,8 @@ export default function Hero() {
             
             <p className="text-lg text-slate-400 mb-8 max-w-lg leading-relaxed">
               Transfer entire folders and files between multiple Google Drive accounts 
-              using <span className="text-cyan-400 font-medium">rclone server-side operations</span>. 
+              using <span className="text-cyan-400 font-medium">rclone's Remote Control API</span>. 
+              Connect your real Google accounts through rclone's OAuth flow. 
               No downloads, no uploads — blazing fast cloud-to-cloud transfers.
             </p>
 

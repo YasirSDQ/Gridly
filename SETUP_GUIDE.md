@@ -1,97 +1,10 @@
-# Gridly - Setup Guide for Real Google Drive Integration
+# Gridly - Setup Guide
 
-This guide will help you set up real Google OAuth2 authentication and rclone integration.
+This guide will help you set up Gridly with real rclone integration for Google Drive management.
 
-## Prerequisites
+## Quick Start (5 minutes)
 
-- Node.js 18+ installed
-- A Google account
-- (Optional) rclone installed locally for advanced features
-
-## Step 1: Google Cloud Console Setup
-
-### 1.1 Create a Google Cloud Project
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Click the project dropdown at the top
-3. Click "NEW PROJECT"
-4. Enter a project name (e.g., "Gridly Drive Manager")
-5. Click "CREATE"
-
-### 1.2 Enable Google Drive API
-
-1. In the navigation menu, go to **APIs & Services** > **Library**
-2. Search for "Google Drive API"
-3. Click on it and press **ENABLE**
-
-### 1.3 Configure OAuth Consent Screen
-
-1. Go to **APIs & Services** > **OAuth consent screen**
-2. Choose **External** (for personal use) or **Internal** (for organization)
-3. Fill in the required fields:
-   - **App name**: Gridly
-   - **User support email**: Your email
-   - **Developer contact information**: Your email
-4. Click **SAVE AND CONTINUE**
-5. On the "Scopes" page, click **ADD OR REMOVE SCOPES**
-6. Search for and add these scopes:
-   - `https://www.googleapis.com/auth/drive`
-   - `https://www.googleapis.com/auth/drive.metadata.readonly`
-   - `openid`
-   - `email`
-   - `profile`
-7. Click **UPDATE** then **SAVE AND CONTINUE**
-8. On the "Test users" page, click **ADD USERS**
-9. Add your Google email address
-10. Click **SAVE AND CONTINUE** then **BACK TO DASHBOARD**
-
-### 1.4 Create OAuth 2.0 Credentials
-
-1. Go to **APIs & Services** > **Credentials**
-2. Click **+ CREATE CREDENTIALS** > **OAuth client ID**
-3. **Application type**: Select "Web application"
-4. **Name**: Gridly Web Client
-5. Under **Authorized redirect URIs**, add:
-   - `http://localhost:5173/auth/callback` (for local development)
-   - `https://your-domain.com/auth/callback` (for production)
-6. Click **CREATE**
-7. **Copy the Client ID** (you'll need this next)
-
-## Step 2: Configure Gridly
-
-### 2.1 Create Environment File
-
-In the project root, create a file named `.env`:
-
-```bash
-VITE_GOOGLE_CLIENT_ID=your_client_id_here.apps.googleusercontent.com
-```
-
-Replace `your_client_id_here.apps.googleusercontent.com` with the Client ID you copied.
-
-### 2.2 Restart Development Server
-
-```bash
-# Stop the server if running (Ctrl+C)
-# Then start it again
-npm run dev
-```
-
-## Step 3: Test the Integration
-
-1. Open the app in your browser
-2. Click "Connect Drive" or "Add New Account"
-3. You should see the Google OAuth consent screen
-4. Sign in with your Google account (must be in test users)
-5. Grant permissions
-6. You'll be redirected back to Gridly
-7. Your account should now appear in the dashboard
-
-## Step 4: (Optional) Install rclone for Advanced Features
-
-For real rclone integration (server-side transfers, advanced operations):
-
-### 4.1 Install rclone
+### Step 1: Install rclone
 
 **macOS:**
 ```bash
@@ -106,94 +19,323 @@ curl https://rclone.org/install.sh | sudo bash
 **Windows:**
 Download from [rclone.org/downloads](https://rclone.org/downloads/)
 
-### 4.2 Configure rclone with Gridly
-
-Gridly can generate rclone configuration for your connected accounts:
-
-1. Connect your Google accounts in Gridly
-2. Go to Settings > Export rclone Config
-3. Copy the generated config
-4. Add it to your rclone config file:
-   - **Linux/macOS**: `~/.config/rclone/rclone.conf`
-   - **Windows**: `%USERPROFILE%\.config\rclone\rclone.conf`
-
-### 4.3 Run rclone Remote Control (Advanced)
-
-For real-time transfer control, run rclone in RC mode:
-
+Verify installation:
 ```bash
-rclone rcd --rc-addr=localhost:5572 --rc-user=gridly --rc-pass=yourpassword
+rclone version
 ```
 
-Then set in your `.env`:
+### Step 2: Clone and Install Gridly
+
 ```bash
-VITE_RCLONE_SERVE_URL=http://localhost:5572
+git clone <repository-url>
+cd gridly
+npm install
 ```
+
+### Step 3: Start rclone RC Daemon
+
+Open a terminal and run:
+
+```bash
+rclone rcd --rc-addr=localhost:5572 --rc-no-auth
+```
+
+You should see:
+```
+NOTICE: Serving remote control on http://localhost:5572/
+```
+
+**Keep this terminal running!**
+
+### Step 4: Start Gridly
+
+In another terminal:
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173)
+
+### Step 5: Connect Your Google Drive
+
+1. Click **"Connect Drive"**
+2. Enter a remote name (e.g., `mydrive`)
+3. Click **"Connect via rclone"**
+4. rclone opens your browser for Google OAuth
+5. Sign in and grant permissions
+6. Your account appears in Gridly!
+
+## Detailed Setup
+
+### rclone RC Daemon Options
+
+**Basic (no authentication):**
+```bash
+rclone rcd --rc-addr=localhost:5572 --rc-no-auth
+```
+
+**With authentication (recommended):**
+```bash
+rclone rcd --rc-addr=localhost:5572 --rc-user=gridly --rc-pass=secretpassword
+```
+
+**With HTTPS:**
+```bash
+rclone rcd --rc-addr=localhost:5572 --rc-cert=cert.pem --rc-key=key.pem
+```
+
+**Serve web GUI:**
+```bash
+rclone rcd --rc-addr=localhost:5572 --rc-serve
+```
+
+### Configure Gridly
+
+If using rclone authentication, create `.env`:
+
+```bash
+VITE_RCLONE_URL=http://localhost:5572
+VITE_RCLONE_USERNAME=gridly
+VITE_RCLONE_PASSWORD=secretpassword
+```
+
+### Advanced rclone Configuration
+
+**Custom Google OAuth credentials:**
+
+If you want to use your own Google OAuth client:
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create OAuth 2.0 credentials
+3. When connecting in Gridly, expand "Advanced Options"
+4. Enter your Client ID and Client Secret
+
+**Service Account:**
+
+For automated/server use:
+
+1. Create a service account in Google Cloud Console
+2. Download the JSON key file
+3. In Gridly, enter the path to the JSON file in "Service Account File"
+
+## How It Works
+
+```
+┌──────────────┐
+│   Browser    │
+│   (Gridly)   │
+└──────┬───────┘
+       │ HTTP
+       │ POST /config/create
+       ▼
+┌──────────────┐
+│   rclone     │
+│   rcd        │
+└──────┬───────┘
+       │ OAuth 2.0
+       ▼
+┌──────────────┐
+│   Google     │
+│   Drive API  │
+└──────────────┘
+```
+
+1. **Gridly** sends requests to **rclone RC API**
+2. **rclone** handles OAuth with Google
+3. **rclone** stores tokens securely
+4. **Gridly** uses rclone to browse/transfer files
+5. **Transfers** happen server-side (no download!)
+
+## rclone RC API Commands
+
+Gridly uses these rclone RC API endpoints:
+
+### Core
+- `POST /core/version` - Get rclone version
+- `POST /core/stats` - Get transfer statistics
+- `POST /core/pid` - Get process ID
+
+### Config
+- `POST /config/create` - Create new remote (triggers OAuth)
+- `POST /config/delete` - Delete remote
+- `POST /config/listremotes` - List all remotes
+- `POST /config/dump` - Dump all config
+
+### Operations
+- `POST /operations/list` - List files
+- `POST /operations/about` - Get storage info
+- `POST /operations/copyfile` - Copy single file
+- `POST /operations/movefile` - Move single file
+
+### Sync
+- `POST /sync/copy` - Copy between remotes
+- `POST /sync/move` - Move between remotes
+- `POST /sync/sync` - Sync between remotes
+
+### Jobs
+- `POST /job/status` - Get job status
+- `POST /job/list` - List active jobs
+- `POST /job/stop` - Stop a job
 
 ## Troubleshooting
 
-### "redirect_uri_mismatch" Error
+### rclone daemon not detected
 
-- Make sure the redirect URI in Google Cloud Console exactly matches:
-  - `http://localhost:5173/auth/callback` (not https, not different port)
+**Check if rclone is running:**
+```bash
+curl http://localhost:5572/core/version
+```
 
-### "access_denied" Error
+**Expected response:**
+```json
+{"decomposed":[1,65,2],"isGit":false,"isBeta":false,"os":"linux","arch":"amd64","version":"1.65.2"}
+```
 
-- Make sure your Google account is added as a test user in OAuth consent screen
-- For production, you need to submit your app for Google verification
+**If not running:**
+```bash
+rclone rcd --rc-addr=localhost:5572
+```
 
-### "invalid_client" Error
+### OAuth flow doesn't start
 
-- Double-check your Client ID in the `.env` file
-- Make sure there are no extra spaces or quotes
+**Manual OAuth:**
+```bash
+rclone config
+```
+Then follow the prompts to add a Google Drive remote.
 
-### Token Refresh Fails
+**Headless server:**
+```bash
+rclone authorize "drive"
+```
+This provides a URL to open in another browser.
 
-- Tokens expire after 1 hour
-- Gridly automatically refreshes them, but if it fails:
-  - Disconnect the account
-  - Reconnect it
+### Connection refused
 
-## Security Notes
+**Check port:**
+```bash
+netstat -tlnp | grep 5572
+```
 
-⚠️ **Important Security Considerations:**
+**Check firewall:**
+```bash
+sudo ufw allow 5572
+```
 
-1. **Never commit `.env` to git** - It's already in `.gitignore`
-2. **Client ID is safe to expose** - It's meant to be public
-3. **Client Secret** - Only needed for server-side apps (not used here)
-4. **Tokens are stored in localStorage** - For a production app, use secure httpOnly cookies
-5. **CORS** - Google's OAuth endpoints support CORS for web apps
-6. **HTTPS required for production** - Google OAuth requires HTTPS in production
+### Authentication failed
+
+**Reset rclone config:**
+```bash
+rm ~/.config/rclone/rclone.conf
+```
+
+**Re-authorize:**
+```bash
+rclone config
+```
+
+### Transfer fails
+
+**Check rclone logs:**
+Look at the terminal where rclone is running.
+
+**Test manually:**
+```bash
+rclone ls mydrive:
+```
+
+**Check quotas:**
+Google Drive has API quotas. Wait if you hit limits.
 
 ## Production Deployment
 
-For production deployment:
+### Docker Compose
 
-1. Update authorized redirect URIs in Google Cloud Console
-2. Submit your app for Google verification (if not using test mode)
-3. Use environment variables in your hosting platform
-4. Ensure HTTPS is enabled
-5. Consider using a backend for token storage (more secure)
+```yaml
+version: '3.8'
+services:
+  rclone:
+    image: rclone/rclone:latest
+    command: rcd --rc-addr=0.0.0.0:5572 --rc-user=gridly --rc-pass=secret
+    volumes:
+      - rclone-config:/config/rclone
+    ports:
+      - "5572:5572"
+  
+  gridly:
+    build: .
+    environment:
+      - VITE_RCLONE_URL=http://rclone:5572
+      - VITE_RCLONE_USERNAME=gridly
+      - VITE_RCLONE_PASSWORD=secret
+    ports:
+      - "80:80"
+    depends_on:
+      - rclone
+
+volumes:
+  rclone-config:
+```
+
+### systemd Service
+
+**`/etc/systemd/system/rclone-rc.service`:**
+```ini
+[Unit]
+Description=rclone Remote Control Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=youruser
+ExecStart=/usr/bin/rclone rcd --rc-addr=localhost:5572 --rc-user=gridly --rc-pass=secret
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Enable and start:**
+```bash
+sudo systemctl enable rclone-rc
+sudo systemctl start rclone-rc
+```
+
+## Security Best Practices
+
+1. **Use authentication** - Always use `--rc-user` and `--rc-pass`
+2. **Limit access** - Bind to `localhost` or specific IP
+3. **Use HTTPS** - For production, use `--rc-cert` and `--rc-key`
+4. **Firewall rules** - Only allow necessary ports
+5. **Environment variables** - Store credentials in `.env`, not in code
+6. **Regular updates** - Keep rclone and Gridly updated
 
 ## API Limits
 
-Google Drive API has quotas:
-- **Default**: 12,000 queries per 100 seconds per user
-- **Per day**: 1,000,000,000 queries per day
-- Gridly is designed to stay well within these limits
+**Google Drive API:**
+- 12,000 queries per 100 seconds per user
+- 1,000,000,000 queries per day
 
-## Support
-
-For issues:
-1. Check the browser console for errors
-2. Verify your OAuth configuration
-3. Make sure your account is in the test users list
-4. Try clearing browser storage and reconnecting
+**rclone RC API:**
+- No inherent limits
+- Depends on your system resources
 
 ## Next Steps
 
-Once connected, you can:
-- Browse files in your Google Drive
-- Transfer files between accounts (server-side, no download!)
-- Monitor transfer progress in real-time
-- Configure rclone settings for optimal performance
+1. ✅ Install rclone
+2. ✅ Start rclone RC daemon
+3. ✅ Install and start Gridly
+4. ✅ Connect your Google Drive
+5. 🎉 Start browsing and transferring files!
+
+## Support
+
+- **rclone docs:** https://rclone.org/docs/
+- **rclone forum:** https://forum.rclone.org/
+- **Gridly issues:** https://github.com/your-repo/gridly/issues
+
+---
+
+**Need help?** Check the [README.md](./README.md) or open an issue on GitHub.

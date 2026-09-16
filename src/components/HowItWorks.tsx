@@ -2,22 +2,22 @@ export default function HowItWorks() {
   const steps = [
     {
       number: '01',
-      title: 'Connect Your Accounts',
-      description: 'Authenticate with real Google OAuth 2.0 + PKCE. Your credentials are never stored on our servers.',
-      icon: 'fa-link',
+      title: 'Start rclone Daemon',
+      description: 'Run rclone in RC (Remote Control) mode. Gridly connects to rclone via its HTTP API.',
+      icon: 'fa-terminal',
       color: 'from-blue-500 to-cyan-500',
     },
     {
       number: '02',
-      title: 'Select Source & Destination',
-      description: 'Choose which account to transfer from and which to transfer to. Select specific folders or entire drives.',
-      icon: 'fa-arrows-left-right',
+      title: 'Connect Google Accounts',
+      description: 'Click "Connect Drive" in Gridly. rclone opens a browser for Google OAuth. Your tokens are stored securely by rclone.',
+      icon: 'fa-link',
       color: 'from-indigo-500 to-purple-500',
     },
     {
       number: '03',
-      title: 'rclone Does the Magic',
-      description: 'rclone performs server-side operations directly between Google\'s servers. No data passes through your device.',
+      title: 'Browse & Transfer',
+      description: 'Gridly uses rclone RC API to browse your files and initiate transfers. All operations happen server-side via Google\'s infrastructure.',
       icon: 'fa-wand-magic-sparkles',
       color: 'from-purple-500 to-pink-500',
     },
@@ -83,7 +83,8 @@ export default function HowItWorks() {
                 Under the Hood
               </h3>
               <p className="text-slate-400 mb-6 leading-relaxed">
-                Gridly leverages rclone's powerful server-side copy and move operations. 
+                Gridly communicates with rclone via its Remote Control (RC) HTTP API. 
+                rclone handles all OAuth tokens, server-side operations, and data transfers. 
                 When both source and destination are on Google Drive, rclone instructs 
                 Google's servers to move data directly — no download/upload cycle needed.
               </p>
@@ -114,16 +115,15 @@ export default function HowItWorks() {
                 <span className="text-xs text-slate-500 ml-2">rclone terminal</span>
               </div>
               <div className="space-y-2 text-xs sm:text-sm">
-                <p className="text-slate-500"># Real Google OAuth2 + rclone</p>
-                <p className="text-green-400">$ rclone copy gdrive_src:Projects/ gdrive_dst:Backup/ \</p>
-                <p className="text-green-400 ml-4">--drive-server-side-across-configs \</p>
-                <p className="text-green-400 ml-4">--drive-use-trash -P --stats 1s</p>
-                <p className="text-slate-400 mt-2">Transferred: <span className="text-cyan-400">4.2 GB</span> (Server-side)</p>
-                <p className="text-slate-400">Checks: <span className="text-green-400">1,247 / 1,247</span>, 100%</p>
-                <p className="text-slate-400">Transferred: <span className="text-green-400">1,247 files</span></p>
-                <p className="text-slate-400">Elapsed time: <span className="text-purple-400">12.3s</span></p>
-                <p className="text-slate-400">Speed: <span className="text-yellow-400">341.5 MB/s</span></p>
-                <p className="text-green-400 mt-2">✓ Transfer complete — verified via Google API</p>
+                <p className="text-slate-500"># Start rclone RC daemon</p>
+                <p className="text-green-400">$ rclone rcd --rc-addr=localhost:5572</p>
+                <p className="text-slate-500 mt-2"># Connect Google Drive via Gridly</p>
+                <p className="text-cyan-400">POST /config/create</p>
+                <p className="text-slate-400">{"{"}"name":"mydrive","type":"drive"{"}"}</p>
+                <p className="text-slate-500 mt-2"># Transfer files via RC API</p>
+                <p className="text-cyan-400">POST /sync/copy</p>
+                <p className="text-slate-400">{"{"}"srcFs":"src:Projects","dstFs":"dst:Backup"{"}"}</p>
+                <p className="text-green-400 mt-2">{"{"}"jobid":1{"}"} ✓ Transfer started</p>
               </div>
             </div>
           </div>
