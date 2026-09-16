@@ -1,9 +1,63 @@
+import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../context/AppContext'
 import { formatBytes, formatDuration } from '../services/rclone'
 
 export default function TransfersView() {
   const { state, dispatch, addToast } = useApp()
+
+  // Simulate progress for running transfers
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const updatedTransfers = state.transfers.map(transfer => {
+        if (transfer.status === 'running' && transfer.progress < 100) {
+          const newProgress = Math.min(transfer.progress + Math.random() * 2, 100)
+          const newTransferredBytes = (newProgress / 100) * transfer.totalBytes
+          const newTransferredFiles = Math.floor((newProgress / 100) * transfer.totalFiles)
+          const newEta = Math.max(0, ((100 - newProgress) / 2) * 60) // Rough ETA in seconds
+
+          if (newProgress >= 100) {
+            return {
+              ...transfer,
+              progress: 100,
+              transferredBytes: transfer.totalBytes,
+              transferredFiles: transfer.totalFiles,
+              status: 'completed' as const,
+              speed: 0,
+              eta: 0,
+              completedAt: Date.now(),
+              logs: [
+                ...transfer.logs,
+                { timestamp: Date.now(), level: 'info' as const, message: '✓ Transfer completed successfully' }
+              ]
+            }
+          }
+
+          return {
+            ...transfer,
+            progress: newProgress,
+            transferredBytes: newTransferredBytes,
+            transferredFiles: newTransferredFiles,
+            speed: 125 * 1024 * 1024 + Math.random() * 50 * 1024 * 1024, // Vary speed slightly
+            eta: newEta,
+            logs: [
+              ...transfer.logs.slice(-2), // Keep only last 3 logs
+              { 
+                timestamp: Date.now(), 
+                level: 'info' as const, 
+                message: `Transferring: ${formatBytes(newTransferredBytes)} / ${formatBytes(transfer.totalBytes)} (${Math.round(newProgress)}%)`
+              }
+            ]
+          }
+        }
+        return transfer
+      })
+
+      dispatch({ type: 'SET_TRANSFERS', payload: updatedTransfers })
+    }, 2000) // Update every 2 seconds
+
+    return () => clearInterval(interval)
+  }, [state.transfers, dispatch])
 
   const handlePause = (transferId: string) => {
     // In real implementation, this would call rclone RC API
@@ -60,6 +114,96 @@ export default function TransfersView() {
   const totalData = state.transfers.reduce((acc, t) => acc + t.totalBytes, 0)
   const transferredData = state.transfers.reduce((acc, t) => acc + t.transferredBytes, 0)
 
+  // Demo function to create sample transfers
+  const createDemoTransfers = () => {
+    if (state.accounts.length < 2) {
+      addToast('warning', 'Need Accounts', 'Please connect at least 2 accounts first')
+      return
+    }
+
+    const demoTransfers = [
+      {
+        id: `demo-${Date.now()}-1`,
+        sourceAccountId: state.accounts[0].id,
+        destAccountId: state.accounts[1].id,
+        sourcePath: 'Documents',
+        destPath: 'Backup/Documents',
+        operation: 'copy' as const,
+        flags: [],
+        status: 'running' as const,
+        progress: 67,
+        totalFiles: 245,
+        transferredFiles: 164,
+        totalBytes: 2.5 * 1024 * 1024 * 1024, // 2.5 GB
+        transferredBytes: 1.675 * 1024 * 1024 * 1024,
+        speed: 125 * 1024 * 1024, // 125 MB/s
+        eta: 67,
+        startedAt: Date.now() - 300000,
+        completedAt: null,
+        error: null,
+        rcloneCommand: 'rclone copy "account1:Documents" "account2:Backup/Documents"',
+        logs: [
+          { timestamp: Date.now() - 60000, level: 'info' as const, message: 'Transfer started' },
+          { timestamp: Date.now() - 30000, level: 'info' as const, message: 'Transferring: 1.67 GB / 2.5 GB (67%)' },
+          { timestamp: Date.now(), level: 'info' as const, message: 'Speed: 125 MB/s, ETA: 1m 7s' },
+        ],
+      },
+      {
+        id: `demo-${Date.now()}-2`,
+        sourceAccountId: state.accounts[1].id,
+        destAccountId: state.accounts[0].id,
+        sourcePath: 'Photos/2024',
+        destPath: 'Archives/Photos',
+        operation: 'sync' as const,
+        flags: [],
+        status: 'completed' as const,
+        progress: 100,
+        totalFiles: 1247,
+        transferredFiles: 1247,
+        totalBytes: 8.2 * 1024 * 1024 * 1024, // 8.2 GB
+        transferredBytes: 8.2 * 1024 * 1024 * 1024,
+        speed: 0,
+        eta: 0,
+        startedAt: Date.now() - 600000,
+        completedAt: Date.now() - 120000,
+        error: null,
+        rcloneCommand: 'rclone sync "account2:Photos/2024" "account1:Archives/Photos"',
+        logs: [
+          { timestamp: Date.now() - 600000, level: 'info' as const, message: 'Transfer started' },
+          { timestamp: Date.now() - 120000, level: 'info' as const, message: '✓ Transfer completed successfully' },
+        ],
+      },
+      {
+        id: `demo-${Date.now()}-3`,
+        sourceAccountId: state.accounts[0].id,
+        destAccountId: state.accounts[1].id,
+        sourcePath: 'Projects/Website',
+        destPath: 'Work/Projects',
+        operation: 'move' as const,
+        flags: [],
+        status: 'queued' as const,
+        progress: 0,
+        totalFiles: 89,
+        transferredFiles: 0,
+        totalBytes: 450 * 1024 * 1024, // 450 MB
+        transferredBytes: 0,
+        speed: 0,
+        eta: 0,
+        startedAt: null,
+        completedAt: null,
+        error: null,
+        rcloneCommand: 'rclone move "account1:Projects/Website" "account2:Work/Projects"',
+        logs: [
+          { timestamp: Date.now(), level: 'info' as const, message: 'Transfer queued, waiting to start' },
+        ],
+      },
+    ]
+
+    const allTransfers = [...demoTransfers, ...state.transfers]
+    dispatch({ type: 'SET_TRANSFERS', payload: allTransfers })
+    addToast('success', 'Demo Transfers Created', '3 sample transfers have been added')
+  }
+
   return (
     <main className="flex-1 flex flex-col bg-[#0a0a0a] overflow-hidden">
       {/* Header */}
@@ -74,15 +218,26 @@ export default function TransfersView() {
             <h2 className="text-2xl font-bold text-white mb-1">Transfers</h2>
             <p className="text-sm text-neutral-400">Monitor and manage your file transfers</p>
           </div>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => dispatch({ type: 'SET_TRANSFER_MODAL', payload: true })}
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold shadow-glow hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] transition-all flex items-center gap-2"
-          >
-            <i className="fa-solid fa-plus" />
-            New Transfer
-          </motion.button>
+          <div className="flex items-center gap-3">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={createDemoTransfers}
+              className="px-6 py-3 bg-white/5 border border-white/10 text-white rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
+            >
+              <i className="fa-solid fa-flask" />
+              Load Demo
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => dispatch({ type: 'SET_TRANSFER_MODAL', payload: true })}
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold shadow-glow hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] transition-all flex items-center gap-2"
+            >
+              <i className="fa-solid fa-plus" />
+              New Transfer
+            </motion.button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -116,27 +271,38 @@ export default function TransfersView() {
             animate={{ opacity: 1, scale: 1 }}
             className="flex items-center justify-center h-full"
           >
-            <div className="text-center">
+            <div className="text-center max-w-md">
               <motion.div
                 animate={{ y: [0, -10, 0] }}
                 transition={{ duration: 2, repeat: Infinity }}
-                className="w-24 h-24 mx-auto mb-6 bg-white/5 rounded-2xl flex items-center justify-center"
+                className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-2xl flex items-center justify-center border border-white/10"
               >
-                <i className="fa-solid fa-arrows-rotate text-5xl text-neutral-600" />
+                <i className="fa-solid fa-arrows-rotate text-5xl text-blue-400" />
               </motion.div>
-              <h3 className="text-xl font-bold text-neutral-400 mb-2">No Transfers Yet</h3>
-              <p className="text-sm text-neutral-500 mb-6">
-                Create your first transfer to move files between Google Drive accounts
+              <h3 className="text-2xl font-bold text-white mb-3">No Transfers Yet</h3>
+              <p className="text-neutral-400 mb-8 leading-relaxed">
+                Create your first transfer to move files between Google Drive accounts, or load demo transfers to see the interface in action.
               </p>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => dispatch({ type: 'SET_TRANSFER_MODAL', payload: true })}
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold shadow-glow hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] transition-all inline-flex items-center gap-2"
-              >
-                <i className="fa-solid fa-plus" />
-                Create First Transfer
-              </motion.button>
+              <div className="flex items-center justify-center gap-3">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={createDemoTransfers}
+                  className="px-6 py-3 bg-white/5 border border-white/10 text-white rounded-xl font-semibold hover:bg-white/10 transition-all inline-flex items-center gap-2"
+                >
+                  <i className="fa-solid fa-flask" />
+                  Load Demo
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => dispatch({ type: 'SET_TRANSFER_MODAL', payload: true })}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold shadow-glow hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] transition-all inline-flex items-center gap-2"
+                >
+                  <i className="fa-solid fa-plus" />
+                  Create Transfer
+                </motion.button>
+              </div>
             </div>
           </motion.div>
         ) : (
