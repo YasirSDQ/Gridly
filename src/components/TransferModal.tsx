@@ -4,230 +4,114 @@ import { createTransfer, startTransfer } from '../services/rclone'
 
 export default function TransferModal() {
   const { state, dispatch, addToast } = useApp()
-  const [sourceId, setSourceId] = useState('')
+  const [sourceId, setSourceId] = useState(state.currentAccountId || '')
   const [destId, setDestId] = useState('')
-  const [sourcePath, setSourcePath] = useState('root')
-  const [destPath, setDestPath] = useState('root')
+  const [sourcePath, setSourcePath] = useState('')
+  const [destPath, setDestPath] = useState('')
   const [operation, setOperation] = useState<'copy' | 'move' | 'sync'>('copy')
-  const [flags, setFlags] = useState<string[]>([])
   const [creating, setCreating] = useState(false)
-
-  if (!state.transferModalOpen) return null
-
-  const handleClose = () => {
-    dispatch({ type: 'SET_TRANSFER_MODAL', payload: false })
-    setSourceId('')
-    setDestId('')
-    setSourcePath('root')
-    setDestPath('root')
-    setOperation('copy')
-    setFlags([])
-  }
 
   const handleCreate = async () => {
     if (!sourceId || !destId) {
-      addToast('warning', 'Missing Accounts', 'Please select both source and destination accounts')
+      addToast('error', 'Missing accounts', 'Select source and destination')
       return
     }
-    if (sourceId === destId) {
-      addToast('error', 'Invalid Selection', 'Source and destination must be different accounts')
-      return
-    }
-
-    const sourceAccount = state.accounts.find(a => a.id === sourceId)
-    const destAccount = state.accounts.find(a => a.id === destId)
-    if (!sourceAccount || !destAccount) return
+    const source = state.accounts.find(a => a.id === sourceId)
+    const dest = state.accounts.find(a => a.id === destId)
+    if (!source || !dest) return
 
     setCreating(true)
     try {
-      const transfer = await createTransfer(
-        sourceAccount,
-        destAccount,
-        sourcePath,
-        destPath,
-        operation,
-        flags
-      )
-
-      // Auto-start the transfer
+      const transfer = await createTransfer(source, dest, sourcePath, destPath, operation)
       dispatch({ type: 'SET_TRANSFERS', payload: [transfer, ...state.transfers] })
       startTransfer(transfer.id)
-
-      addToast('success', 'Transfer Started', `${operation} operation initiated from ${sourceAccount.name} to ${destAccount.name}`)
-      handleClose()
-      dispatch({ type: 'SET_VIEW', payload: 'transfers' })
-    } catch {
-      addToast('error', 'Transfer Failed', 'Could not create transfer job')
+      addToast('success', 'Transfer started', `${operation} from ${source.name} to ${dest.name}`)
+      dispatch({ type: 'SET_TRANSFER_MODAL', payload: false })
+    } catch (err: any) {
+      addToast('error', 'Transfer failed', err.message)
     } finally {
       setCreating(false)
     }
   }
 
-  const toggleFlag = (flag: string) => {
-    setFlags(prev => prev.includes(flag) ? prev.filter(f => f !== flag) : [...prev, flag])
-  }
-
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleClose} />
-
-      <div className="relative w-full max-w-lg glass-card rounded-2xl p-6 animate-slide-up border border-indigo-500/20 max-h-[90vh] overflow-y-auto">
-        {/* Header */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-xl font-bold text-white">New Transfer</h3>
-            <p className="text-sm text-slate-400 mt-1">Configure rclone transfer operation</p>
-          </div>
-          <button onClick={handleClose} className="p-2 rounded-lg hover:bg-white/5 text-slate-400 hover:text-white transition-colors">
-            <i className="fa-solid fa-xmark text-lg" />
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">New Transfer</h2>
+          <button onClick={() => dispatch({ type: 'SET_TRANSFER_MODAL', payload: false })} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+            <i className="fa-solid fa-xmark text-slate-500" />
           </button>
         </div>
 
-        <div className="space-y-5">
-          {/* Operation Type */}
+        <div className="space-y-4">
           <div>
-            <label className="text-sm text-slate-400 mb-2 block">Operation</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Operation</label>
             <div className="grid grid-cols-3 gap-2">
-              {[
-                { value: 'copy', label: 'Copy', icon: 'fa-copy', desc: 'Duplicate files' },
-                { value: 'move', label: 'Move', icon: 'fa-arrow-right', desc: 'Move files' },
-                { value: 'sync', label: 'Sync', icon: 'fa-arrows-rotate', desc: 'Make identical' },
-              ].map((op) => (
+              {(['copy', 'move', 'sync'] as const).map(op => (
                 <button
-                  key={op.value}
-                  onClick={() => setOperation(op.value as 'copy' | 'move' | 'sync')}
-                  className={`p-3 rounded-xl border text-center transition-all ${
-                    operation === op.value
-                      ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-300'
-                      : 'bg-slate-800/30 border-slate-700/30 text-slate-400 hover:border-slate-600/50'
+                  key={op}
+                  onClick={() => setOperation(op)}
+                  className={`py-2 px-3 rounded-lg text-sm font-medium capitalize transition-colors ${
+                    operation === op
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                   }`}
                 >
-                  <i className={`fa-solid ${op.icon} text-lg mb-1`} />
-                  <p className="text-xs font-medium">{op.label}</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">{op.desc}</p>
+                  {op}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Source */}
           <div>
-            <label className="text-sm text-slate-400 mb-2 block">
-              <i className="fa-solid fa-arrow-right-from-bracket text-blue-400 mr-1" />
-              Source Account
-            </label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Source</label>
             <select
               value={sourceId}
               onChange={(e) => setSourceId(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/50 text-white text-sm focus:outline-none focus:border-indigo-500/50 transition-colors"
+              className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
             >
-              <option value="">Select source account...</option>
-              {state.accounts.filter(a => a.id !== destId).map((acc) => (
-                <option key={acc.id} value={acc.id}>{acc.name} ({acc.email})</option>
+              <option value="">Select source...</option>
+              {state.accounts.filter(a => a.id !== destId).map(a => (
+                <option key={a.id} value={a.id}>{a.name}</option>
               ))}
             </select>
             <input
               type="text"
               value={sourcePath}
               onChange={(e) => setSourcePath(e.target.value)}
-              placeholder="root or folder ID"
-              className="w-full mt-2 px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/50 text-white text-sm focus:outline-none focus:border-indigo-500/50 transition-colors font-mono placeholder:text-slate-600"
+              placeholder="Path (e.g., Documents)"
+              className="w-full mt-2 px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
             />
           </div>
 
-          {/* Destination */}
           <div>
-            <label className="text-sm text-slate-400 mb-2 block">
-              <i className="fa-solid fa-arrow-right-to-bracket text-purple-400 mr-1" />
-              Destination Account
-            </label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Destination</label>
             <select
               value={destId}
               onChange={(e) => setDestId(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/50 text-white text-sm focus:outline-none focus:border-indigo-500/50 transition-colors"
+              className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
             >
-              <option value="">Select destination account...</option>
-              {state.accounts.filter(a => a.id !== sourceId).map((acc) => (
-                <option key={acc.id} value={acc.id}>{acc.name} ({acc.email})</option>
+              <option value="">Select destination...</option>
+              {state.accounts.filter(a => a.id !== sourceId).map(a => (
+                <option key={a.id} value={a.id}>{a.name}</option>
               ))}
             </select>
             <input
               type="text"
               value={destPath}
               onChange={(e) => setDestPath(e.target.value)}
-              placeholder="root or folder ID"
-              className="w-full mt-2 px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/50 text-white text-sm focus:outline-none focus:border-indigo-500/50 transition-colors font-mono placeholder:text-slate-600"
+              placeholder="Path (e.g., Backup)"
+              className="w-full mt-2 px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
             />
           </div>
 
-          {/* Advanced Flags */}
-          <div>
-            <label className="text-sm text-slate-400 mb-2 block">Advanced Options</label>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { flag: '--drive-server-side-across-configs', label: 'Server-side' },
-                { flag: '--checksum', label: 'Checksum verify' },
-                { flag: '--dry-run', label: 'Dry run' },
-                { flag: '--create-empty-src-dirs', label: 'Empty dirs' },
-                { flag: '--ignore-existing', label: 'Skip existing' },
-                { flag: '--track-renames', label: 'Track renames' },
-              ].map((item) => (
-                <button
-                  key={item.flag}
-                  onClick={() => toggleFlag(item.flag)}
-                  className={`px-3 py-2 rounded-lg text-xs text-left transition-all ${
-                    flags.includes(item.flag)
-                      ? 'bg-indigo-500/20 border border-indigo-500/30 text-indigo-300'
-                      : 'bg-slate-800/30 border border-slate-700/30 text-slate-400 hover:border-slate-600/50'
-                  }`}
-                >
-                  <i className={`fa-solid ${flags.includes(item.flag) ? 'fa-check' : 'fa-circle'} mr-1.5`} />
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Summary */}
-          {sourceId && destId && (
-            <div className="p-4 rounded-xl bg-slate-800/30 border border-slate-700/30">
-              <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Transfer Summary</p>
-              <div className="space-y-1.5 text-xs">
-                <p className="text-slate-400">
-                  <span className="text-white">Operation:</span> {operation}
-                </p>
-                <p className="text-slate-400">
-                  <span className="text-white">From:</span> {state.accounts.find(a => a.id === sourceId)?.email}:{sourcePath}
-                </p>
-                <p className="text-slate-400">
-                  <span className="text-white">To:</span> {state.accounts.find(a => a.id === destId)?.email}:{destPath}
-                </p>
-                {flags.length > 0 && (
-                  <p className="text-slate-400">
-                    <span className="text-white">Flags:</span> {flags.join(', ')}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Submit */}
           <button
             onClick={handleCreate}
             disabled={creating || !sourceId || !destId}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium hover:from-indigo-500 hover:to-purple-500 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg font-medium transition-colors"
           >
-            {creating ? (
-              <>
-                <i className="fa-solid fa-spinner fa-spin" />
-                Creating Transfer...
-              </>
-            ) : (
-              <>
-                <i className="fa-solid fa-play" />
-                Start {operation.charAt(0).toUpperCase() + operation.slice(1)} Transfer
-              </>
-            )}
+            {creating ? 'Starting...' : 'Start Transfer'}
           </button>
         </div>
       </div>

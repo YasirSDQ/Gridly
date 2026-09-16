@@ -47,6 +47,9 @@ export async function connectGoogleDriveAccount(
   }
 
   // Create account object
+  const colors = ['bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-orange-500', 'bg-pink-500', 'bg-cyan-500']
+  const color = colors[storage.getAccounts().length % colors.length]
+  
   const account: DriveAccount = {
     id: generateId(),
     name: remoteName,
@@ -63,6 +66,7 @@ export async function connectGoogleDriveAccount(
     status: 'connected',
     addedAt: Date.now(),
     lastSynced: Date.now(),
+    color,
   }
 
   // Save to storage

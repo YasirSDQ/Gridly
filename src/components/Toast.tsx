@@ -7,41 +7,30 @@ export default function Toast() {
 
   const getIcon = (type: string) => {
     switch (type) {
-      case 'success': return 'fa-check-circle text-green-400'
-      case 'error': return 'fa-exclamation-circle text-red-400'
-      case 'warning': return 'fa-exclamation-triangle text-yellow-400'
-      case 'info': return 'fa-info-circle text-blue-400'
-      default: return 'fa-info-circle text-blue-400'
-    }
-  }
-
-  const getBorderColor = (type: string) => {
-    switch (type) {
-      case 'success': return 'border-green-500/30'
-      case 'error': return 'border-red-500/30'
-      case 'warning': return 'border-yellow-500/30'
-      case 'info': return 'border-blue-500/30'
-      default: return 'border-blue-500/30'
+      case 'success': return 'fa-check-circle text-green-500'
+      case 'error': return 'fa-exclamation-circle text-red-500'
+      case 'warning': return 'fa-exclamation-triangle text-orange-500'
+      default: return 'fa-info-circle text-blue-500'
     }
   }
 
   return (
-    <div className="fixed top-20 right-4 z-[100] space-y-3 max-w-sm">
-      {state.toasts.map((toast) => (
+    <div className="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm">
+      {state.toasts.map(toast => (
         <div
           key={toast.id}
-          className={`p-4 rounded-xl glass-card border ${getBorderColor(toast.type)} animate-slide-up flex items-start gap-3`}
+          className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-4 flex items-start gap-3 animate-slide-up"
         >
           <i className={`fa-solid ${getIcon(toast.type)} mt-0.5`} />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-white">{toast.title}</p>
-            <p className="text-xs text-slate-400 mt-0.5">{toast.message}</p>
+            <p className="text-sm font-medium text-slate-900 dark:text-white">{toast.title}</p>
+            <p className="text-xs text-slate-500 mt-0.5">{toast.message}</p>
           </div>
           <button
             onClick={() => dispatch({ type: 'REMOVE_TOAST', payload: toast.id })}
-            className="text-slate-500 hover:text-white transition-colors"
+            className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"
           >
-            <i className="fa-solid fa-xmark text-sm" />
+            <i className="fa-solid fa-xmark text-slate-400 text-xs" />
           </button>
         </div>
       ))}

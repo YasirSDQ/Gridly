@@ -102,9 +102,24 @@ export const storage = {
     localStorage.setItem(KEYS.AUTH_STATE, JSON.stringify(state))
   },
 
+  // Starred files
+  getStarredFiles(): string[] {
+    try {
+      const data = localStorage.getItem('gridly_starred')
+      return data ? JSON.parse(data) : []
+    } catch {
+      return []
+    }
+  },
+
+  saveStarredFiles(files: string[]): void {
+    localStorage.setItem('gridly_starred', JSON.stringify(files))
+  },
+
   // Clear all
   clearAll(): void {
     Object.values(KEYS).forEach(key => localStorage.removeItem(key))
+    localStorage.removeItem('gridly_starred')
   },
 }
 

@@ -1,4 +1,4 @@
-// Types for the Gridly application
+// Types for the Gridly Drive Manager application
 
 export interface DriveAccount {
   id: string
@@ -16,6 +16,7 @@ export interface DriveAccount {
   status: 'connected' | 'syncing' | 'error' | 'disconnected'
   addedAt: number
   lastSynced: number | null
+  color: string
 }
 
 export interface DriveFile {
@@ -24,10 +25,18 @@ export interface DriveFile {
   mimeType: string
   size: number
   modifiedTime: string
+  createdTime?: string
   parents: string[]
   isFolder: boolean
   icon: string
   path: string
+  starred?: boolean
+  shared?: boolean
+  trashed?: boolean
+  thumbnailLink?: string
+  webViewLink?: string
+  owners?: string[]
+  description?: string
 }
 
 export interface TransferJob {
@@ -44,8 +53,8 @@ export interface TransferJob {
   transferredFiles: number
   totalBytes: number
   transferredBytes: number
-  speed: number // bytes per second
-  eta: number // seconds
+  speed: number
+  eta: number
   startedAt: number | null
   completedAt: number | null
   error: string | null
@@ -84,4 +93,49 @@ export interface ToastMessage {
   duration: number
 }
 
-export type ViewMode = 'home' | 'dashboard' | 'transfers' | 'settings' | 'browser'
+export type ViewMode = 'grid' | 'list'
+export type SortMode = 'name' | 'modified' | 'size' | 'type'
+export type SortDirection = 'asc' | 'desc'
+export type Section = 'mydrive' | 'recent' | 'starred' | 'shared' | 'trash' | 'transfers' | 'accounts'
+export type DetailsTab = 'details' | 'activity' | 'sharing'
+
+export interface AppState {
+  accounts: DriveAccount[]
+  transfers: TransferJob[]
+  rcloneConfig: RcloneConfig
+  toasts: ToastMessage[]
+  
+  // Current view state
+  currentSection: Section
+  currentAccountId: string | null
+  currentFolderId: string
+  currentPath: { id: string; name: string }[]
+  files: DriveFile[]
+  selectedFiles: Set<string>
+  starredFiles: Set<string>
+  
+  // UI state
+  viewMode: ViewMode
+  sortMode: SortMode
+  sortDirection: SortDirection
+  searchQuery: string
+  detailsPanelOpen: boolean
+  detailsFileId: string | null
+  detailsTab: DetailsTab
+  sidebarCollapsed: boolean
+  contextMenu: { x: number; y: number; fileId: string } | null
+  
+  // Modals
+  authModalOpen: boolean
+  newFolderModalOpen: boolean
+  renameModalOpen: boolean
+  transferModalOpen: boolean
+  settingsModalOpen: boolean
+  
+  // Loading states
+  isLoading: boolean
+  isUploading: boolean
+  
+  // Clipboard for copy/paste
+  clipboard: { fileIds: string[]; accountId: string; operation: 'copy' | 'cut' } | null
+}
