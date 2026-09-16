@@ -1,99 +1,123 @@
-# Gridly - Advanced Drive Manager
+# Gridly - Premium Google Drive Manager
 
-A **premium, modern** Google Drive manager powered by **rclone** with stunning animations, beautiful UI, and advanced features. Gridly provides a Google Drive-like experience with server-side file transfers and a polished, professional interface.
+A **stunning, modern** Google Drive manager powered by **rclone** with a premium dark theme, sophisticated animations, and professional-grade UI design inspired by Linear, Vercel, and Stripe.
 
-![Gridly](https://img.shields.io/badge/Gridly-v4.0-blue)
+![Gridly](https://img.shields.io/badge/Gridly-v5.0-blue)
 ![rclone](https://img.shields.io/badge/rclone-1.60+-green)
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![Tailwind](https://img.shields.io/badge/Tailwind-4-06b6d4)
 ![Framer Motion](https://img.shields.io/badge/Framer_Motion-11-ff0088)
 
-## ✨ Features
+## 🎨 Design Philosophy
 
-### 🎨 Stunning Modern UI
-- **Beautiful landing page** with animated gradients and floating elements
-- **Smooth page transitions** with Framer Motion
-- **Glass-morphism effects** with backdrop blur
-- **Gradient animations** throughout the interface
-- **Neon glows** and shadow effects
-- **Modern card designs** with hover animations
-- **Premium typography** with Inter font
-- **Consistent color system** with indigo/purple/cyan palette
+Gridly features a **premium dark theme** with:
+- **Sophisticated color palette** - Deep blacks (#0a0a0a) with subtle gradients
+- **Glassmorphism effects** - Frosted glass with backdrop blur and saturation
+- **Neon glow effects** - Subtle shadows that create depth and dimension
+- **Smooth animations** - Spring physics and staggered transitions
+- **Professional typography** - Inter font with perfect hierarchy
+- **Minimalist interface** - Clean, focused, and distraction-free
+
+## ✨ Key Features
+
+### 🌟 Premium Landing Page
+- **Animated mesh gradient background** - Dynamic, living background
+- **Glassmorphism cards** - Frosted glass effect with depth
+- **Staggered animations** - Elements appear in sequence
+- **Gradient text** - Beautiful blue-purple-pink gradients
+- **Floating elements** - Subtle floating animations
+- **Professional stats** - Clean, minimal stat displays
+
+### 🎯 Modern Drive Manager
+- **Dark theme** - Easy on the eyes, professional appearance
+- **Glass sidebar** - Frosted glass with subtle borders
+- **Animated navigation** - Smooth transitions between sections
+- **File cards** - Hover effects with lift and glow
+- **Context menu** - Staggered item animations
+- **Details panel** - Tabbed interface with smooth transitions
 
 ### 🚀 Advanced Animations
-- **Page transitions** - Smooth fade and scale between views
-- **Staggered animations** - Elements animate in sequence
-- **Hover effects** - Interactive scale, lift, and glow animations
-- **Loading states** - Animated spinners and skeleton loaders
-- **Micro-interactions** - Button presses, toggles, selections
-- **Layout animations** - Smooth reordering when files change
-- **Spring physics** - Natural, bouncy animations
-- **Gesture support** - Drag, swipe, and tap interactions
-
-### 🎯 Google Drive-like Interface
-- **Sidebar navigation** with animated icons and gradients
-- **Grid and List views** with smooth transitions
-- **Breadcrumb navigation** with animated path items
-- **Details panel** with tabbed interface and animations
-- **Context menu** with staggered item animations
-- **Multi-select** with animated checkboxes
-- **Search** with keyboard shortcut (⌘K) and focus animations
-- **Account switcher** with animated dropdown
-- **Storage indicator** with animated progress bar
-- **Notifications** with animated badges
+- **Spring physics** - Natural, bouncy motion
+- **Staggered lists** - Items appear one by one
+- **Hover effects** - Scale, lift, and glow on interaction
+- **Layout animations** - Smooth reordering
+- **Micro-interactions** - Every click feels responsive
+- **Loading states** - Beautiful spinners and skeletons
 
 ### 🔌 Real rclone Integration
-- **rclone RC API** - Full integration via Remote Control HTTP API
-- **OAuth via rclone** - Secure Google authentication
+- **rclone RC API** - Full integration via Remote Control
+- **OAuth via rclone** - Secure authentication
 - **Server-side transfers** - Zero bandwidth usage
-- **Real-time progress** - Live monitoring via `core/stats`
-- **Job tracking** - Monitor via `job/status`
+- **Real-time progress** - Live monitoring
+- **Job tracking** - Detailed status updates
 
-### 📁 File Management
-- Browse files with animated grid/list views
-- Star/unstar files with animated stars
-- Rename files and folders with modal dialogs
-- Create new folders with animated modals
-- Copy, move, delete operations
-- Transfer files between accounts
-- File details with animated tabs
-- Context menu with staggered animations
+## 🎨 Design System
 
-### ⚡ Transfer Engine
-- Copy/Move/Sync operations
-- Real-time progress with speed and ETA
-- Pause/resume/cancel transfers
-- Transfer logs
-- Multiple concurrent transfers
-- Animated progress bars
+### Colors
+```css
+/* Background */
+--color-bg-primary: #0a0a0a      /* Main background */
+--color-bg-secondary: #171717    /* Cards, panels */
+--color-bg-tertiary: #262626     /* Elevated elements */
 
-## 🎬 User Experience Flow
+/* Borders */
+--color-border: rgba(255, 255, 255, 0.08)
+--color-border-hover: rgba(255, 255, 255, 0.15)
 
-### 1. Landing Page
-Beautiful animated landing page with:
-- Animated gradient background with floating orbs
-- Hero section with compelling copy
-- Feature cards with hover animations
-- Stats section with animated counters
-- Call-to-action buttons with glow effects
-- Smooth scroll animations
+/* Text */
+--color-text-primary: #fafafa    /* Main text */
+--color-text-secondary: #a3a3a3  /* Secondary text */
+--color-text-tertiary: #737373   /* Muted text */
 
-### 2. Connect Account
-Click "Connect Your Drive" to:
-- Open an animated modal with spring physics
-- Check rclone connection status
-- Enter remote name and configure scope
-- Complete OAuth in browser
-- See success animation with checkmark
+/* Accents */
+--color-accent: #3b82f6          /* Blue */
+--color-accent-hover: #2563eb
+```
 
-### 3. Drive Manager
-After connecting, smoothly transition to:
-- Full drive manager interface
-- Animated sidebar with navigation
-- File browser with grid/list views
-- Real-time file operations
-- Transfer monitoring
-- Details panel with tabs
+### Gradients
+```css
+/* Text Gradient */
+gradient-text: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)
+
+/* Background Mesh */
+bg-mesh: radial-gradient(at 40% 20%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+         radial-gradient(at 80% 0%, rgba(139, 92, 246, 0.1) 0px, transparent 50%),
+         radial-gradient(at 0% 50%, rgba(236, 72, 153, 0.1) 0px, transparent 50%)
+```
+
+### Shadows
+```css
+/* Glow Effect */
+shadow-glow: 
+  0 0 20px rgba(59, 130, 246, 0.15),
+  0 0 40px rgba(139, 92, 246, 0.1),
+  0 0 60px rgba(236, 72, 153, 0.05)
+
+/* Depth Shadow */
+shadow-depth:
+  0 1px 2px rgba(0, 0, 0, 0.3),
+  0 2px 4px rgba(0, 0, 0, 0.2),
+  0 4px 8px rgba(0, 0, 0, 0.15),
+  0 8px 16px rgba(0, 0, 0, 0.1),
+  0 16px 32px rgba(0, 0, 0, 0.05)
+```
+
+### Glass Effects
+```css
+/* Standard Glass */
+.glass {
+  background: rgba(23, 23, 23, 0.8);
+  backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Light Glass */
+.glass-light {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+```
 
 ## 🚀 Quick Start
 
@@ -126,47 +150,43 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173)
 
-### 4. Experience the Magic
-1. **See the landing page** with beautiful animations
-2. **Click "Connect Your Drive"** to start onboarding
-3. **Complete OAuth** in the browser
-4. **Watch the smooth transition** to the drive manager
-5. **Start managing** your Google Drive files!
+### 4. Experience Premium Design
+1. **See the landing page** - Stunning animated background
+2. **Click "Connect Your Drive"** - Beautiful modal with spring physics
+3. **Complete OAuth** - Secure authentication via rclone
+4. **Enter the drive manager** - Premium dark interface
+5. **Browse files** - Smooth animations and hover effects
 
-## 🎨 Design System
+## 🎬 User Experience
 
-### Colors
-- **Primary**: Indigo (#6366f1) to Purple (#a855f7)
-- **Secondary**: Cyan (#06b6d4) to Blue (#3b82f6)
-- **Success**: Green (#10b981) to Emerald (#059669)
-- **Warning**: Orange (#f97316) to Amber (#f59e0b)
-- **Danger**: Red (#ef4444) to Rose (#e11d48)
+### Landing Page
+- **Animated mesh gradient** - Living, breathing background
+- **Hero section** - Bold typography with gradient text
+- **Feature cards** - Glass effect with hover animations
+- **Stats section** - Clean, minimal displays
+- **Call-to-action** - Prominent buttons with glow effects
 
-### Typography
-- **Font**: Inter (Google Fonts)
-- **Weights**: 300, 400, 500, 600, 700
-- **Sizes**: xs (10px) to 7xl (72px)
+### Drive Manager
+- **Sidebar** - Glass effect with animated navigation
+- **Top bar** - Frosted glass with search and controls
+- **File browser** - Grid/list views with smooth transitions
+- **Details panel** - Tabbed interface with animations
+- **Context menu** - Staggered item reveals
+- **Modals** - Spring physics and smooth transitions
 
 ### Animations
-- **Duration**: 0.2s - 0.5s for most animations
-- **Easing**: Spring physics for natural motion
-- **Stagger**: 0.03s - 0.1s between elements
-- **Scale**: 0.9 - 1.1 for hover/tap effects
-- **Rotate**: 5° - 15° for icon animations
-
-### Shadows
-- **sm**: 0 1px 2px rgba(0, 0, 0, 0.05)
-- **md**: 0 4px 6px rgba(0, 0, 0, 0.1)
-- **lg**: 0 10px 15px rgba(0, 0, 0, 0.1)
-- **xl**: 0 20px 25px rgba(0, 0, 0, 0.15)
-- **2xl**: 0 25px 50px rgba(0, 0, 0, 0.25)
+- **Page transitions** - Fade and scale between views
+- **List animations** - Staggered item appearances
+- **Hover effects** - Scale, lift, and glow
+- **Loading states** - Beautiful spinners
+- **Micro-interactions** - Every click feels premium
 
 ## 🏗️ Architecture
 
 ```
 ┌─────────────────┐
 │   Gridly UI     │  React + Tailwind + Framer Motion
-│   (Browser)     │  Animated, modern interface
+│   (Browser)     │  Premium dark theme
 └────────┬────────┘
          │ HTTP API (JSON)
          ▼
@@ -182,8 +202,9 @@ Open [http://localhost:5173](http://localhost:5173)
 └─────────────────┘
 ```
 
-## 📋 rclone RC API Endpoints
+## 📋 Technical Details
 
+### rclone RC API Endpoints
 - `core/version` - Check rclone version
 - `core/stats` - Get transfer statistics
 - `config/create` - Create new remote (OAuth flow)
@@ -196,8 +217,7 @@ Open [http://localhost:5173](http://localhost:5173)
 - `sync/sync` - Sync between remotes
 - `job/status` - Get job status
 
-## 🎯 Keyboard Shortcuts
-
+### Keyboard Shortcuts
 | Shortcut | Action |
 |----------|--------|
 | `⌘K` / `Ctrl+K` | Focus search |
@@ -249,6 +269,41 @@ volumes:
   rclone-config:
 ```
 
+## 🎨 Customization
+
+### Change Theme Colors
+Edit `src/index.css`:
+```css
+:root {
+  --color-bg-primary: #0a0a0a;
+  --color-accent: #3b82f6;
+  /* Add your custom colors */
+}
+```
+
+### Modify Animations
+Update Framer Motion transitions in components:
+```tsx
+<motion.div
+  initial={{ opacity: 0 }}
+  animate={{ opacity: 1 }}
+  transition={{ 
+    duration: 0.5, 
+    ease: [0.16, 1, 0.3, 1] // Custom easing
+  }}
+>
+```
+
+### Adjust Glass Effects
+Modify glass classes in `src/index.css`:
+```css
+.glass {
+  background: rgba(23, 23, 23, 0.8);
+  backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+```
+
 ## 🐛 Troubleshooting
 
 ### "rclone daemon not detected"
@@ -260,20 +315,16 @@ curl http://localhost:5572/core/version
 rclone rcd --rc-addr=localhost:5572
 ```
 
-### OAuth flow doesn't start
-- Make sure rclone can open a browser
-- Try `rclone config` manually first
-
-### Animations not working
+### Animations not smooth
 - Check browser console for errors
 - Ensure Framer Motion is installed: `npm install framer-motion`
 - Try clearing browser cache
 - Check browser compatibility (requires modern browser)
 
-### Transfer fails
-- Check rclone logs in the terminal
-- Verify both accounts are connected
-- Check Google Drive API quotas
+### Dark theme issues
+- Clear browser cache
+- Check CSS is loading correctly
+- Verify Tailwind is processing custom styles
 
 ## 📝 Environment Variables
 
@@ -283,39 +334,15 @@ rclone rcd --rc-addr=localhost:5572
 | `VITE_RCLONE_USERNAME` | rclone RC username | (empty) |
 | `VITE_RCLONE_PASSWORD` | rclone RC password | (empty) |
 
-## 🎨 Customization
-
-### Colors
-Edit `src/index.css` to customize the color scheme:
-```css
-.bg-gradient-to-br {
-  background: linear-gradient(to bottom right, var(--tw-gradient-stops));
-}
-```
-
-### Animations
-Modify animation durations and easing in component files:
-```tsx
-<motion.div
-  initial={{ opacity: 0 }}
-  animate={{ opacity: 1 }}
-  transition={{ duration: 0.5, type: 'spring' }}
->
-```
-
-### Fonts
-Change the font in `index.html`:
-```html
-<link href="https://fonts.googleapis.com/css2?family=YourFont:wght@400;500;600;700&display=swap" rel="stylesheet">
-```
-
 ## 🙏 Acknowledgments
 
 - [rclone](https://rclone.org/) - The swiss army knife of cloud storage
 - [React](https://reactjs.org/) - UI library
 - [Tailwind CSS](https://tailwindcss.com/) - CSS framework
 - [Framer Motion](https://www.framer.com/motion/) - Animation library
-- [Font Awesome](https://fontawesome.com/) - Icons
+- [Linear](https://linear.app/) - Design inspiration
+- [Vercel](https://vercel.com/) - Design inspiration
+- [Stripe](https://stripe.com/) - Design inspiration
 - [Inter Font](https://rsms.me/inter/) - Typography
 
 ## 📄 License
@@ -326,4 +353,4 @@ MIT License
 
 **Built with ❤️ using React, TypeScript, Tailwind CSS, Framer Motion, and rclone**
 
-Experience the future of cloud storage management with Gridly - where functionality meets beautiful design!
+Experience the future of cloud storage management with Gridly - where premium design meets powerful functionality!
