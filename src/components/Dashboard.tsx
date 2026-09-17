@@ -1,15 +1,75 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../context/AppContext'
-import { disconnectAccount, refreshAccountInfo } from '../services/auth'
-import { formatBytes, testRemote } from '../services/rclone'
-import { storage } from '../services/storage'
+import { browseFiles, formatBytes } from '../services/rclone'
+import type { DriveFile, DriveAccount } from '../types'
+import { disconnectAccount } from '../services/auth'
 
 export default function Dashboard() {
-  const { state, dispatch, addToast, setView } = useApp()
+  const { state, dispatch, addToast } = useApp()
+  
+  // App state & selections
+  const [activeAccount, setActiveAccount] = useState<DriveAccount | null>(null)
+  const [files, setFiles] = useState<DriveFile[]>([])
+  const [path, setPath] = useState<{ id: string; name: string }[]>([{ id: 'root', name: 'My Drive' }])
+  const [loading, setLoading] = useState(false)
+  const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [accountToDelete, setAccountToDelete] = useState<{id: string, name: string} | null>(null)
+  
+  // Select first account by default if available
+  useEffect(() => {
+    // Make sure to only select accounts that don't trigger errors when loading,
+    // or if the active account throws an error, allow the user to see it and disconnect it.
+    if (state.accounts.length > 0 && (!activeAccount || !state.accounts.find(a => a.id === activeAccount.id))) {
+      setActiveAccount(state.accounts[0])
+    }
+  }, [state.accounts, activeAccount])
 
-  const handleDisconnect = (accountId: string, accountName: string) => {
-    setAccountToDelete({ id: accountId, name: accountName })
+  // Load files when account or current folder changes
+  const currentFolderId = path[path.length - 1].id;
+  useEffect(() => {
+    if (activeAccount) {
+      loadFiles(currentFolderId)
+    }
+  }, [activeAccount?.id, currentFolderId])
+
+  const loadFiles = async (folderId: string) => {
+    if (!activeAccount) return
+    setLoading(true)
+    try {
+      const result = await browseFiles(activeAccount, folderId)
+      setFiles(result.files)
+      if (folderId === 'root' && (path.length !== 1 || path[0].id !== 'root')) {
+        setPath([{ id: 'root', name: 'My Drive' }])
+      }
+    } catch (err: any) {
+      console.log('Error caught in loadFiles:', err.message);
+      if (err.message && err.message.includes("didn't find section in config file")) {
+         console.log('Removing account', activeAccount.id);
+         dispatch({ type: 'REMOVE_ACCOUNT', payload: activeAccount.id })
+         addToast('warning', 'Account Removed', `Account ${activeAccount.name} was removed because it is no longer authenticated.`)
+         setActiveAccount(null)
+      } else {
+         addToast('error', 'Failed to load files', err.message)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleNavigate = (folder: DriveFile) => {
+    if (!folder.isFolder) return
+    setPath([...path, { id: folder.id || folder.path, name: folder.name }])
+  }
+
+  const navigateUp = (index: number) => {
+    setPath(path.slice(0, index + 1))
+  }
+
+  const handleDisconnect = () => {
+    if (!activeAccount) return
+    setAccountToDelete({ id: activeAccount.id, name: activeAccount.name })
   }
 
   const confirmDisconnect = async () => {
@@ -17,7 +77,8 @@ export default function Dashboard() {
     try {
       await disconnectAccount(accountToDelete.id)
       dispatch({ type: 'REMOVE_ACCOUNT', payload: accountToDelete.id })
-      addToast('info', 'Account Disconnected', `${accountToDelete.name} has been removed from rclone`)
+      addToast('info', 'Account Disconnected', `${accountToDelete.name} has been removed`)
+      setActiveAccount(null)
     } catch (err: any) {
       addToast('error', 'Disconnect Failed', err.message)
     } finally {
@@ -25,280 +86,268 @@ export default function Dashboard() {
     }
   }
 
-  const cancelDisconnect = () => {
-    setAccountToDelete(null)
-  }
+  const selectedFile = files.find(f => f.id === selectedFileId || f.path === selectedFileId)
 
-  const handleTestConnection = async (account: typeof state.accounts[0]) => {
-    addToast('info', 'Testing Connection', `Testing rclone remote: ${account.rcloneRemote}`)
-    const result = await testRemote(account)
-    if (result.success) {
-      addToast('success', 'Connection OK', result.message)
-      dispatch({ type: 'UPDATE_ACCOUNT', payload: { id: account.id, updates: { status: 'connected', lastSynced: Date.now() } } })
-    } else {
-      addToast('error', 'Connection Failed', result.message)
-      dispatch({ type: 'UPDATE_ACCOUNT', payload: { id: account.id, updates: { status: 'error' } } })
-    }
+  if (state.accounts.length === 0) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
+        <i className="fa-brands fa-google-drive text-6xl mb-4 opacity-50" />
+        <h2 className="text-xl font-medium text-white mb-2">No Accounts Connected</h2>
+        <p className="mb-6">Connect a Google Drive account to start browsing your files.</p>
+        <button 
+          onClick={() => dispatch({ type: 'SET_AUTH_MODAL', payload: true })}
+          className="px-6 py-3 rounded-xl bg-indigo-500 text-white font-medium hover:bg-indigo-600 transition-colors"
+        >
+          Connect Account
+        </button>
+      </div>
+    )
   }
-
-  const handleBrowse = (accountId: string) => {
-    dispatch({ type: 'SET_BROWSER', payload: { accountId, path: 'root' } })
-  }
-
-  const handleRefreshStorage = async (account: typeof state.accounts[0]) => {
-    addToast('info', 'Refreshing', `Fetching storage info for ${account.name} from rclone...`)
-    try {
-      await refreshAccountInfo(account.id)
-      // Reload accounts from storage
-      const accounts = storage.getAccounts()
-      dispatch({ type: 'SET_ACCOUNTS', payload: accounts })
-      addToast('success', 'Updated', `Storage info refreshed for ${account.name}`)
-    } catch (err: any) {
-      addToast('error', 'Refresh Failed', err.message)
-    }
-  }
-
-  const totalStorage = state.accounts.reduce((acc, a) => acc + a.totalBytes, 0)
-  const usedStorage = state.accounts.reduce((acc, a) => acc + a.usedBytes, 0)
-  const totalFiles = state.accounts.reduce((acc, a) => acc + a.fileCount, 0)
-  const activeTransfers = state.transfers.filter(t => t.status === 'running').length
 
   return (
-    <section className="pt-24 pb-20 px-4 sm:px-6 lg:px-8 min-h-screen">
-      <div className="max-w-7xl mx-auto">
-        {/* Dashboard Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
-          <div>
-            <h2 className="text-3xl font-bold text-white mb-2">Drive Dashboard</h2>
-            <p className="text-slate-400">Manage your connected Google Drive accounts via rclone</p>
-          </div>
-          <button
-            onClick={() => dispatch({ type: 'SET_AUTH_MODAL', payload: true })}
-            className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium hover:from-indigo-500 hover:to-purple-500 transition-all duration-300 neon-glow flex items-center gap-2"
-          >
-            <i className="fa-brands fa-google-drive" />
-            Add New Account
-          </button>
-        </div>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {[
-            { label: 'Total Accounts', value: state.accounts.length.toString(), icon: 'fa-users', color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
-            { label: 'Total Storage', value: totalStorage > 0 ? formatBytes(totalStorage) : '0 B', icon: 'fa-database', color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
-            { label: 'Total Files', value: totalFiles.toLocaleString(), icon: 'fa-file', color: 'text-purple-400', bg: 'bg-purple-500/10' },
-            { label: 'Active Transfers', value: activeTransfers.toString(), icon: 'fa-arrows-rotate', color: 'text-green-400', bg: 'bg-green-500/10' },
-          ].map((stat, i) => (
-            <div key={i} className="p-4 rounded-xl glass-card-light">
-              <div className={`w-10 h-10 rounded-lg ${stat.bg} flex items-center justify-center mb-3`}>
-                <i className={`fa-solid ${stat.icon} ${stat.color}`} />
+    <div className="flex h-full w-full">
+      {/* Main File Browser */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Toolbar & Breadcrumbs */}
+        <div className="px-6 py-4 flex items-center justify-between border-b border-white/5">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+            {path.map((p, i) => (
+              <div key={p.id} className="flex items-center whitespace-nowrap">
+                <button 
+                  onClick={() => navigateUp(i)}
+                  className={`text-lg font-medium hover:bg-white/10 px-2 py-1 rounded-lg transition-colors ${i === path.length - 1 ? 'text-white' : 'text-slate-400'}`}
+                >
+                  {p.name}
+                </button>
+                {i < path.length - 1 && <i className="fa-solid fa-chevron-right text-xs text-slate-600 mx-1" />}
               </div>
-              <p className="text-2xl font-bold text-white">{stat.value}</p>
-              <p className="text-xs text-slate-500 mt-1">{stat.label}</p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        {/* Quick Transfer */}
-        <div className="p-6 rounded-2xl glass-card mb-8">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <i className="fa-solid fa-right-left text-indigo-400" />
-            Quick Transfer
-          </h3>
-          {state.accounts.length >= 2 ? (
-            <div className="flex items-center gap-4 flex-wrap">
-              <p className="text-sm text-slate-400 flex-1">
-                Select accounts and start a server-side transfer using rclone.
-              </p>
-              <button
-                onClick={() => dispatch({ type: 'SET_TRANSFER_MODAL', payload: true })}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 text-white font-medium hover:from-indigo-500 hover:to-cyan-500 transition-all duration-300 flex items-center gap-2"
-              >
-                <i className="fa-solid fa-play" />
-                Create New Transfer
-              </button>
-            </div>
-          ) : (
-            <div className="text-center py-6">
-              <i className="fa-solid fa-link text-slate-600 text-3xl mb-3" />
-              <p className="text-slate-400 text-sm">Connect at least 2 accounts to start transferring</p>
-              <button
-                onClick={() => dispatch({ type: 'SET_AUTH_MODAL', payload: true })}
-                className="mt-3 px-4 py-2 rounded-lg bg-indigo-500/20 text-indigo-300 text-sm font-medium hover:bg-indigo-500/30 transition-colors"
-              >
-                <i className="fa-solid fa-plus mr-2" />
-                Connect Account
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Accounts Grid */}
-        {state.accounts.length === 0 ? (
-          <div className="text-center py-20 glass-card rounded-2xl">
-            <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-indigo-500/10 flex items-center justify-center">
-              <i className="fa-brands fa-google-drive text-indigo-400 text-3xl" />
-            </div>
-            <h3 className="text-xl font-semibold text-white mb-2">No Accounts Connected</h3>
-            <p className="text-slate-400 text-sm mb-6 max-w-md mx-auto">
-              Connect your Google Drive accounts to start managing and transferring files using rclone.
-            </p>
-            <button
-              onClick={() => dispatch({ type: 'SET_AUTH_MODAL', payload: true })}
-              className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium hover:from-indigo-500 hover:to-purple-500 transition-all duration-300 neon-glow inline-flex items-center gap-2"
+          <div className="flex items-center gap-2 shrink-0 ml-4">
+            <button 
+              onClick={() => loadFiles(path[path.length - 1].id)}
+              className="w-9 h-9 rounded-full hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
             >
-              <i className="fa-brands fa-google" />
-              Connect Your First Account
+              <i className={`fa-solid fa-rotate-right ${loading ? 'fa-spin' : ''}`} />
+            </button>
+            <div className="w-px h-6 bg-white/10 mx-1" />
+            <button 
+              onClick={() => setViewMode('list')}
+              className={`w-9 h-9 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors ${viewMode === 'list' ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-400'}`}
+            >
+              <i className="fa-solid fa-list" />
+            </button>
+            <button 
+              onClick={() => setViewMode('grid')}
+              className={`w-9 h-9 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-400'}`}
+            >
+              <i className="fa-solid fa-grid" />
             </button>
           </div>
-        ) : (
-          <div className="grid md:grid-cols-2 gap-6">
-            {state.accounts.map((account) => {
-              const percentage = Math.round((account.usedBytes / account.totalBytes) * 100)
-              return (
-                <div key={account.id} className="p-6 rounded-2xl glass-card hover:scale-[1.01] transition-all duration-300 group">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={account.avatar}
-                        alt={account.name}
-                        className="w-12 h-12 rounded-xl object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none'
-                        }}
-                      />
-                      <div>
-                        <h4 className="font-semibold text-white">{account.name}</h4>
-                        <p className="text-xs text-slate-500">{account.email}</p>
-                        <p className="text-[10px] text-indigo-400 font-mono mt-0.5">remote: {account.rcloneRemote}</p>
+        </div>
+
+        {/* File Grid/List */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 relative" onClick={(e) => { if (e.target === e.currentTarget) setSelectedFileId(null) }}>
+          {loading ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
+              <i className="fa-solid fa-circle-notch fa-spin text-4xl mb-4 text-indigo-500" />
+            </div>
+          ) : (
+            <motion.div 
+              layout
+              className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 content-start' : 'flex flex-col gap-2'}
+            >
+              <AnimatePresence>
+                {files.map(file => {
+                  const id = file.id || file.path
+                  const isSelected = selectedFileId === id
+                  
+                  return (
+                    <motion.div
+                      key={id}
+                      layout
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      whileHover={{ scale: viewMode === 'grid' ? 1.02 : 1 }}
+                      onClick={() => setSelectedFileId(id)}
+                      onDoubleClick={() => handleNavigate(file)}
+                      className={`
+                        cursor-pointer transition-colors border group relative overflow-hidden shadow-sm
+                        ${viewMode === 'grid' ? 'p-5 rounded-2xl flex flex-col items-center text-center h-40 justify-center' : 'p-3 rounded-xl flex items-center gap-4'}
+                        ${isSelected ? 'bg-indigo-500/20 border-indigo-500/50 shadow-indigo-500/10' : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10'}
+                      `}
+                    >
+                      <i className={`
+                        fa-solid ${file.isFolder ? 'fa-folder text-indigo-400' : 'fa-file-lines text-slate-400'} 
+                        ${viewMode === 'grid' ? 'text-5xl mb-3 drop-shadow-md' : 'text-2xl'}
+                        group-hover:scale-110 transition-transform duration-300
+                      `} />
+                      <div className={`min-w-0 ${viewMode === 'list' && 'flex-1 flex justify-between items-center'}`}>
+                        <p className={`font-medium truncate ${viewMode === 'grid' ? 'w-full text-sm' : 'text-sm'}`}>
+                          {file.name}
+                        </p>
+                        {viewMode === 'list' && !file.isFolder && (
+                          <span className="text-xs text-slate-500">{formatBytes(file.size)}</span>
+                        )}
                       </div>
-                    </div>
-                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-                      account.status === 'connected' ? 'bg-green-500/10 text-green-400' :
-                      account.status === 'syncing' ? 'bg-cyan-500/10 text-cyan-400' :
-                      account.status === 'error' ? 'bg-red-500/10 text-red-400' :
-                      'bg-slate-500/10 text-slate-400'
-                    }`}>
-                      <div className={`w-1.5 h-1.5 rounded-full ${
-                        account.status === 'connected' ? 'bg-green-400' :
-                        account.status === 'syncing' ? 'bg-cyan-400 animate-pulse' :
-                        account.status === 'error' ? 'bg-red-400' : 'bg-slate-400'
-                      }`} />
-                      {account.status}
-                    </div>
+                      
+                      {/* Context menu hint */}
+                      {isSelected && viewMode === 'grid' && (
+                        <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center text-white">
+                          <i className="fa-solid fa-check text-xs" />
+                        </div>
+                      )}
+                    </motion.div>
+                  )
+                })}
+              </AnimatePresence>
+              {files.length === 0 && (
+                <div className="col-span-full py-20 flex flex-col items-center justify-center text-slate-500">
+                  <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mb-6">
+                    <i className="fa-regular fa-folder-open text-4xl opacity-50" />
                   </div>
-
-                  {/* Storage Bar */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between text-sm mb-2">
-                      <span className="text-slate-400">Storage Used</span>
-                      <span className="text-white font-medium">{formatBytes(account.usedBytes)} / {formatBytes(account.totalBytes)}</span>
-                    </div>
-                    <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-1000 ${
-                          percentage > 90 ? 'bg-red-500' : percentage > 70 ? 'bg-yellow-500' : 'bg-gradient-to-r from-indigo-500 to-cyan-500'
-                        }`}
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1">{percentage}% used</p>
-                  </div>
-
-                  {/* File Stats */}
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div className="p-3 rounded-lg bg-slate-800/30">
-                      <p className="text-lg font-bold text-white">{account.fileCount.toLocaleString()}</p>
-                      <p className="text-xs text-slate-500">Files</p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-slate-800/30">
-                      <p className="text-lg font-bold text-white">{account.folderCount.toLocaleString()}</p>
-                      <p className="text-xs text-slate-500">Folders</p>
-                    </div>
-                  </div>
-
-                  {/* Last synced */}
-                  {account.lastSynced && (
-                    <p className="text-xs text-slate-500 mb-3">
-                      <i className="fa-solid fa-clock mr-1" />
-                      Last synced: {new Date(account.lastSynced).toLocaleString()}
-                    </p>
-                  )}
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 pt-3 border-t border-slate-700/30 flex-wrap">
-                    <button
-                      onClick={() => handleBrowse(account.id)}
-                      className="flex-1 px-3 py-2 rounded-lg bg-indigo-500/10 text-indigo-400 text-xs font-medium hover:bg-indigo-500/20 transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      <i className="fa-solid fa-folder-open" />
-                      Browse
-                    </button>
-                    <button
-                      onClick={() => handleTestConnection(account)}
-                      className="flex-1 px-3 py-2 rounded-lg bg-cyan-500/10 text-cyan-400 text-xs font-medium hover:bg-cyan-500/20 transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      <i className="fa-solid fa-satellite-dish" />
-                      Test
-                    </button>
-                    <button
-                      onClick={() => handleRefreshStorage(account)}
-                      className="flex-1 px-3 py-2 rounded-lg bg-green-500/10 text-green-400 text-xs font-medium hover:bg-green-500/20 transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      <i className="fa-solid fa-rotate" />
-                      Refresh
-                    </button>
-                    <button
-                      onClick={() => handleDisconnect(account.id, account.name)}
-                      className="px-3 py-2 rounded-lg bg-red-500/10 text-red-400 text-xs font-medium hover:bg-red-500/20 transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      <i className="fa-solid fa-unlink" />
-                    </button>
-                  </div>
+                  <p className="text-lg font-medium text-white mb-2">This folder is empty</p>
+                  <p className="text-sm">Upload files or create folders to get started.</p>
                 </div>
-              )
-            })}
-          </div>
-        )}
+              )}
+            </motion.div>
+          )}
+        </div>
       </div>
 
-      {/* Disconnect Confirmation Modal */}
-      {accountToDelete && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={cancelDisconnect} />
-          <div className="relative w-full max-w-md glass-card rounded-2xl p-6 shadow-2xl animate-slide-up border border-red-500/20">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center text-red-400">
-                <i className="fa-solid fa-triangle-exclamation text-xl" />
+      {/* Details Panel (Right Sidebar) */}
+      <AnimatePresence>
+        {selectedFile && (
+          <motion.div
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 320, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            className="border-l border-white/5 bg-white/5 backdrop-blur-xl flex flex-col overflow-hidden shrink-0"
+          >
+            <div className="w-80 h-full flex flex-col">
+              <div className="h-16 flex items-center justify-between px-4 border-b border-white/5 shrink-0">
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <i className={`fa-solid ${selectedFile.isFolder ? 'fa-folder text-indigo-400' : 'fa-file-lines text-slate-400'}`} />
+                  <h2 className="font-bold truncate text-sm">{selectedFile.name}</h2>
+                </div>
+                <button 
+                  onClick={() => setSelectedFileId(null)}
+                  className="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center shrink-0 transition-colors"
+                >
+                  <i className="fa-solid fa-xmark text-slate-400 hover:text-white" />
+                </button>
               </div>
-              <div>
-                <h3 className="text-xl font-bold text-white">Disconnect Account</h3>
-                <p className="text-sm text-slate-400">Are you sure you want to remove this drive?</p>
-              </div>
-            </div>
-            
-            <p className="text-slate-300 text-sm mb-6">
-              This will remove <span className="font-bold text-white">"{accountToDelete.name}"</span> from your dashboard. Files on Google Drive will remain untouched.
-            </p>
 
-            <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={cancelDisconnect}
-                className="px-4 py-2 rounded-xl bg-slate-800 text-white font-medium hover:bg-slate-700 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDisconnect}
-                className="px-4 py-2 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors flex items-center gap-2 shadow-lg shadow-red-500/20"
-              >
-                <i className="fa-solid fa-unlink" />
-                Disconnect Drive
-              </button>
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="w-full aspect-square rounded-2xl bg-gradient-to-br from-white/5 to-white/10 border border-white/10 flex items-center justify-center mb-8 shadow-inner relative overflow-hidden group">
+                  <div className="absolute inset-0 bg-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <i className={`fa-solid ${selectedFile.isFolder ? 'fa-folder text-indigo-400' : 'fa-file-lines text-slate-400'} text-6xl transform group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300`} />
+                </div>
+                
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-white/5 pb-2">Properties</h3>
+                
+                <div className="space-y-4 text-sm mb-8">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Type</span>
+                    <span className="text-white font-medium">{selectedFile.isFolder ? 'Folder' : selectedFile.mimeType || 'File'}</span>
+                  </div>
+                  {!selectedFile.isFolder && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Size</span>
+                      <span className="text-white font-medium">{formatBytes(selectedFile.size)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Modified</span>
+                    <span className="text-white font-medium text-right">
+                      {new Date(selectedFile.modifiedTime).toLocaleString(undefined, { 
+                        year: 'numeric', month: 'short', day: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                      })}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <button className="w-full py-3 rounded-xl bg-indigo-500 text-white font-semibold hover:bg-indigo-600 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20">
+                    <i className="fa-solid fa-download" />
+                    Download
+                  </button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button className="py-2.5 rounded-xl bg-white/5 text-white font-medium hover:bg-white/10 transition-colors flex items-center justify-center gap-2 border border-white/5">
+                      <i className="fa-solid fa-share-nodes" />
+                      Share
+                    </button>
+                    <button className="py-2.5 rounded-xl bg-white/5 text-white font-medium hover:bg-white/10 transition-colors flex items-center justify-center gap-2 border border-white/5">
+                      <i className="fa-regular fa-star" />
+                      Star
+                    </button>
+                  </div>
+                  <button className="w-full py-2.5 rounded-xl bg-red-500/10 text-red-400 font-medium hover:bg-red-500/20 transition-colors flex items-center justify-center gap-2 mt-2">
+                    <i className="fa-regular fa-trash-can" />
+                    Delete
+                  </button>
+                </div>
+              </div>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Account Disconnect Modal */}
+      <AnimatePresence>
+        {accountToDelete && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" 
+              onClick={() => setAccountToDelete(null)} 
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md glass-card rounded-3xl p-8 shadow-2xl border border-red-500/20"
+            >
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-14 h-14 rounded-full bg-red-500/20 flex items-center justify-center text-red-400 shrink-0">
+                  <i className="fa-solid fa-triangle-exclamation text-2xl" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Disconnect Drive</h3>
+                  <p className="text-sm text-slate-400 mt-1">Are you sure you want to remove this account?</p>
+                </div>
+              </div>
+              
+              <p className="text-slate-300 text-sm mb-8 leading-relaxed">
+                This will remove <span className="font-bold text-white px-1.5 py-0.5 rounded bg-white/10">{accountToDelete.name}</span> from your dashboard. 
+                <br/><br/>
+                Don't worry, your actual files on Google Drive will remain completely untouched. You can reconnect it later at any time.
+              </p>
+
+              <div className="flex items-center gap-3 w-full">
+                <button
+                  onClick={() => setAccountToDelete(null)}
+                  className="flex-1 py-3 rounded-xl bg-white/5 text-white font-semibold hover:bg-white/10 transition-colors border border-white/5"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDisconnect}
+                  className="flex-1 py-3 rounded-xl bg-red-500 text-white font-semibold hover:bg-red-600 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-red-500/20"
+                >
+                  <i className="fa-solid fa-unlink" />
+                  Disconnect
+                </button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
-    </section>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }

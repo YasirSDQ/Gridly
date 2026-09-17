@@ -32,8 +32,15 @@ const rcloneProcess = spawn(RCLONE_BIN, [
   "--rc-no-auth",
   "--rc-addr=127.0.0.1:5572",
   "--config",
-  RCLONE_CONFIG_PATH
+  RCLONE_CONFIG_PATH,
+  "-vv" // Add double verbose to trace
 ]);
+
+const logStream = fs.createWriteStream('rclone.log', {flags: 'a'});
+rcloneProcess.stdout.pipe(logStream);
+rcloneProcess.stderr.pipe(logStream);
+
+
 
 rcloneProcess.on("error", (err) => {
   console.error("Failed to start rclone rcd:", err);
@@ -172,7 +179,7 @@ app.post("/api/auth/callback", async (req, res) => {
   }, 10000);
 });
 
-app.post("/api/auth/new", (req, res) => {
+app.post("/api/auth/new", async (req, res) => {
   const { name, tokenStr } = req.body;
   if (!name || !tokenStr) {
     return res.status(400).json({ error: "Name and token required" });
@@ -180,22 +187,34 @@ app.post("/api/auth/new", (req, res) => {
 
   try {
     const parsed = JSON.parse(tokenStr);
-    if (!parsed || typeof parsed !== 'object' || !parsed.access_token) {
-       return res.status(400).json({ error: "Invalid token structure. The JSON must contain an 'access_token' field." });
+    if (!parsed || typeof parsed !== 'object' || !parsed.access_token) { 
+      return res.status(400).json({ error: "Invalid token structure." });
     }
-  } catch (e) {
-    return res.status(400).json({ error: "Invalid token format. Please paste the exact JSON block (starting with { and ending with })." });
+    
+    // Use rclone RC to create the remote so it is instantly available
+    const rcUrl = `http://127.0.0.1:5572/config/create`;
+    const rcRes = await fetch(rcUrl, {
+      method: 'POST',
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        type: 'drive',
+        parameters: {
+          scope: 'drive',
+          token: tokenStr,
+          config_is_local: 'false'
+        }
+      })
+    });
+    
+    if (!rcRes.ok) {
+      throw new Error(await rcRes.text());
+    }
+    
+    res.json({ message: `Account ${name} added successfully.` });
+  } catch (e: any) {
+    return res.status(500).json({ error: "Failed to add account via RC", details: e.message });
   }
-
-  const configContent = `
-[${name}]
-type = drive
-scope = drive
-token = ${tokenStr}
-`;
-  
-  fs.appendFileSync(RCLONE_CONFIG_PATH, configContent);
-  res.json({ message: `Account ${name} added successfully.` });
 });
 
 async function startServer() {

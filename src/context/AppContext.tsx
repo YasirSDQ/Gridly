@@ -22,6 +22,7 @@ type Action =
   | { type: 'REMOVE_ACCOUNT'; payload: string }
   | { type: 'UPDATE_ACCOUNT'; payload: { id: string; updates: Partial<DriveAccount> } }
   | { type: 'SET_TRANSFERS'; payload: TransferJob[] }
+  | { type: 'ADD_TRANSFER'; payload: TransferJob }
   | { type: 'UPDATE_TRANSFER'; payload: { id: string; updates: Partial<TransferJob> } }
   | { type: 'SET_RCLONE_CONFIG'; payload: RcloneConfig }
   | { type: 'ADD_TOAST'; payload: ToastMessage }
@@ -50,6 +51,8 @@ function reducer(state: AppState, action: Action): AppState {
       }
     case 'SET_TRANSFERS':
       return { ...state, transfers: action.payload }
+    case 'ADD_TRANSFER':
+      return { ...state, transfers: [action.payload, ...state.transfers] }
     case 'UPDATE_TRANSFER':
       return {
         ...state,

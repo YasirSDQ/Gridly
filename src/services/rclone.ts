@@ -80,7 +80,8 @@ export async function browseFiles(
 
       return { files, path }
     } catch (error) {
-      console.error('Failed to browse files via rclone:', error)
+      // console.error removed to prevent false positive AI Studio errors
+      throw error
     }
   }
 
