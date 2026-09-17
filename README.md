@@ -1,3 +1,12 @@
+---
+title: Gridly
+emoji: 🚀
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+app_port: 3000
+---
+
 # Gridly - Advanced Google Drive Manager
 
 A modern, high-tech web application for managing multiple Google Drive accounts using **rclone** as the engine. Gridly connects to rclone's Remote Control (RC) API to provide a beautiful interface for browsing, transferring, and managing your Google Drive files.

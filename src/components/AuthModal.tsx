@@ -161,8 +161,10 @@ export default function AuthModal() {
         totalBytes,
         fileCount,
         folderCount,
-        lastSync: Date.now(),
-        rcloneRemote: remoteName
+        lastSynced: Date.now(),
+        rcloneRemote: remoteName,
+        status: 'connected',
+        addedAt: Date.now()
       }})
 
     } catch (err: any) {

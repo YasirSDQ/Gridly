@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../context/AppContext'
-import { cancelTransfer, deleteTransfer } from '../services/auth' // Assuming these exist, or we mock them
+import { cancelTransfer, deleteTransfer } from '../services/rclone'
 
 export default function TransferManager() {
   const { state, dispatch, addToast } = useApp()
@@ -9,7 +9,7 @@ export default function TransferManager() {
 
   const transfers = state.transfers.filter(t => {
     if (filter === 'running') return t.status === 'running' || t.status === 'queued'
-    if (filter === 'completed') return t.status === 'completed' || t.status === 'failed'
+    if (filter === 'completed') return t.status === 'completed' || t.status === 'error'
     return true
   })
 
@@ -19,41 +19,71 @@ export default function TransferManager() {
       payload: [
         {
           id: 'demo-1',
-          name: 'Project_Backup_2024.zip',
-          source: 'Local',
-          destination: 'My Drive',
+          sourceAccountId: 'local',
+          destAccountId: 'drive',
+          sourcePath: 'Project_Backup_2024.zip',
+          destPath: 'My Drive/Project_Backup_2024.zip',
+          operation: 'copy',
+          flags: [],
           status: 'running',
           progress: 67,
-          bytesTransferred: 670000000,
+          totalFiles: 1,
+          transferredFiles: 0,
           totalBytes: 1000000000,
-          speed: '2.5 MB/s',
-          eta: '2m 15s'
+          transferredBytes: 670000000,
+          speed: 2500000,
+          eta: 135,
+          startedAt: Date.now(),
+          completedAt: null,
+          error: null,
+          rcloneCommand: 'copy',
+          logs: []
         },
         {
           id: 'demo-2',
-          name: 'Vacation_Photos.zip',
-          source: 'Local',
-          destination: 'My Drive',
+          sourceAccountId: 'local',
+          destAccountId: 'drive',
+          sourcePath: 'Vacation_Photos.zip',
+          destPath: 'My Drive/Vacation_Photos.zip',
+          operation: 'copy',
+          flags: [],
           status: 'completed',
           progress: 100,
-          bytesTransferred: 4500000000,
+          totalFiles: 1,
+          transferredFiles: 1,
           totalBytes: 4500000000,
-          speed: '0 B/s',
-          eta: 'Done'
+          transferredBytes: 4500000000,
+          speed: 0,
+          eta: 0,
+          startedAt: Date.now() - 50000,
+          completedAt: Date.now(),
+          error: null,
+          rcloneCommand: 'copy',
+          logs: []
         },
         {
           id: 'demo-3',
-          name: 'Video_Renders_V2.mp4',
-          source: 'Local',
-          destination: 'My Drive',
+          sourceAccountId: 'local',
+          destAccountId: 'drive',
+          sourcePath: 'Video_Renders_V2.mp4',
+          destPath: 'My Drive/Video_Renders_V2.mp4',
+          operation: 'copy',
+          flags: [],
           status: 'queued',
           progress: 0,
-          bytesTransferred: 0,
+          totalFiles: 1,
+          transferredFiles: 0,
           totalBytes: 2100000000,
-          speed: 'Pending',
-          eta: '-'
+          transferredBytes: 0,
+          speed: 0,
+          eta: 0,
+          startedAt: null,
+          completedAt: null,
+          error: null,
+          rcloneCommand: 'copy',
+          logs: []
         }
-      ]
+      ] as any[]
     })
     addToast('success', 'Demo Data Loaded', 'Added 3 sample transfers')
   }
@@ -139,18 +169,18 @@ export default function TransferManager() {
                     <i className={`fa-solid ${
                       t.status === 'completed' ? 'fa-check text-green-400' :
                       t.status === 'running' ? 'fa-bolt text-indigo-400' :
-                      t.status === 'failed' ? 'fa-xmark text-red-400' :
+                      t.status === 'error' ? 'fa-xmark text-red-400' :
                       'fa-clock text-slate-400'
                     } text-xl`} />
                   </div>
                   
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
-                      <h4 className="font-bold text-white truncate pr-4">{t.name}</h4>
+                      <h4 className="font-bold text-white truncate pr-4">{t.sourcePath.split("/").pop()}</h4>
                       <span className={`text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
                         t.status === 'completed' ? 'bg-green-500/20 text-green-400' :
                         t.status === 'running' ? 'bg-indigo-500/20 text-indigo-400' :
-                        t.status === 'failed' ? 'bg-red-500/20 text-red-400' :
+                        t.status === 'error' ? 'bg-red-500/20 text-red-400' :
                         'bg-slate-500/20 text-slate-400'
                       }`}>
                         {t.status}
@@ -159,11 +189,11 @@ export default function TransferManager() {
                     
                     <div className="flex items-center gap-4 text-xs text-slate-400 mb-3">
                       <div className="flex items-center gap-1.5">
-                        <i className="fa-solid fa-server" /> {t.source}
+                        <i className="fa-solid fa-server" /> {t.sourceAccountId}
                       </div>
                       <i className="fa-solid fa-arrow-right text-slate-600" />
                       <div className="flex items-center gap-1.5">
-                        <i className="fa-brands fa-google-drive text-indigo-400" /> {t.destination}
+                        <i className="fa-brands fa-google-drive text-indigo-400" /> {t.destAccountId}
                       </div>
                     </div>
 
@@ -173,7 +203,7 @@ export default function TransferManager() {
                         animate={{ width: `${t.progress}%` }}
                         className={`h-full absolute left-0 top-0 ${
                           t.status === 'completed' ? 'bg-green-500' : 
-                          t.status === 'failed' ? 'bg-red-500' : 
+                          t.status === 'error' ? 'bg-red-500' : 
                           'bg-gradient-to-r from-indigo-500 to-purple-500'
                         }`} 
                       />

@@ -113,11 +113,11 @@ function AppContent() {
             <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden mt-3">
               <div 
                 className="h-full bg-gradient-to-r from-indigo-500 to-purple-500" 
-                style={{ width: `${(activeAccount.usedBytes / activeAccount.totalBytes) * 100}%` }}
+                style={{ width: `${(activeAccount.usedBytes / (activeAccount.totalBytes || 1)) * 100}%` }}
               />
             </div>
             <p className="text-xs text-slate-400 mt-2">
-              {Math.round((activeAccount.usedBytes / activeAccount.totalBytes) * 100)}% used
+              {Math.round((activeAccount.usedBytes / (activeAccount.totalBytes || 1)) * 100) || 0}% used
             </p>
           </div>
         )}
@@ -150,21 +150,10 @@ function AppContent() {
         </header>
 
         {/* View Routing */}
-        <div className="flex-1 relative overflow-hidden">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={state.currentView}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-              className="absolute inset-0"
-            >
-              {state.currentView === 'dashboard' && <Dashboard />}
-              {state.currentView === 'transfers' && <TransferManager />}
-              {state.currentView === 'settings' && <SettingsPanel />}
-            </motion.div>
-          </AnimatePresence>
+        <div className="flex-1 relative overflow-y-auto">
+          {state.currentView === 'dashboard' && <Dashboard />}
+          {state.currentView === 'transfers' && <TransferManager />}
+          {state.currentView === 'settings' && <SettingsPanel />}
         </div>
       </div>
 
