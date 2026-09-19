@@ -20,6 +20,9 @@ export function saveRCConfig(config: RcloneRCConfig): void {
   // no-op, managed by backend now
 }
 
+// Cache rclone running status for 30s to avoid redundant network pings
+let cachedRunning: { val: boolean; time: number } | null = null
+
 // Check if rclone RC is configured and reachable
 export function isRCConfigured(): boolean {
   return true
@@ -29,12 +32,15 @@ export function isRCConfigured(): boolean {
 export async function rcCall<T = any>(
   endpoint: string,
   params: Record<string, any> = {},
-  configOverride?: RcloneRCConfig
+  configOverride?: RcloneRCConfig,
+  extraHeaders?: Record<string, string>
 ): Promise<T> {
-  const url = `/api/rc/${endpoint}`
+  const baseUrl = typeof window !== 'undefined' ? '' : 'http://localhost:3000'
+  const url = `${baseUrl}/api/rc/${endpoint}`
   
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    ...extraHeaders,
   }
 
   const response = await fetch(url, {
@@ -57,6 +63,21 @@ export async function rcCall<T = any>(
   const text = await response.text()
   if (!text) return {} as T
   return JSON.parse(text) as T
+}
+
+export async function isRcloneRunning(): Promise<boolean> {
+  const now = Date.now()
+  if (cachedRunning && now - cachedRunning.time < 30000) {
+    return cachedRunning.val
+  }
+  try {
+    await rcCall('core/version')
+    cachedRunning = { val: true, time: now }
+    return true
+  } catch {
+    cachedRunning = { val: false, time: now }
+    return false
+  }
 }
 
 // ============== Core Endpoints ==============
@@ -144,12 +165,28 @@ export interface RcloneFile {
 export async function listFiles(
   fs: string,
   remote: string = '',
-  opt?: { recurse?: boolean; dirsOnly?: boolean; filesOnly?: boolean }
+  opt?: { recurse?: boolean; dirsOnly?: boolean; filesOnly?: boolean },
+  forceRefresh?: boolean
 ): Promise<{ list: RcloneFile[] }> {
-  return rcCall('operations/list', {
+  return rcCall(
+    'operations/list',
+    {
+      fs,
+      remote,
+      opt: opt || {},
+    },
+    undefined,
+    forceRefresh ? { 'x-refresh': 'true' } : undefined
+  )
+}
+
+export async function statFile(
+  fs: string,
+  remote: string
+): Promise<{ item: RcloneFile }> {
+  return rcCall('operations/stat', {
     fs,
     remote,
-    opt: opt || {},
   })
 }
 
@@ -163,26 +200,84 @@ export async function getAbout(fs: string): Promise<{
   return rcCall('operations/about', { fs })
 }
 
-export async function copyFile(srcFs: string, srcRemote: string, dstFs: string, dstRemote: string): Promise<void> {
-  await rcCall('operations/copyfile', {
+export async function copyFile(
+  srcFs: string,
+  srcRemote: string,
+  dstFs: string,
+  dstRemote: string,
+  _options?: Record<string, any>
+): Promise<{ jobid: number }> {
+  const { _config, ...restOptions } = _options || {}
+  return rcCall('operations/copyfile', {
     srcFs,
     srcRemote,
     dstFs,
     dstRemote,
+    _async: true,
+    _config: {
+      ServerSideAcrossConfigs: true,
+      ..._config,
+    },
+    ...restOptions,
   })
 }
 
-export async function moveFile(srcFs: string, srcRemote: string, dstFs: string, dstRemote: string): Promise<void> {
-  await rcCall('operations/movefile', {
+export async function moveFile(
+  srcFs: string,
+  srcRemote: string,
+  dstFs: string,
+  dstRemote: string,
+  _options?: Record<string, any>
+): Promise<{ jobid: number }> {
+  const { _config, ...restOptions } = _options || {}
+  return rcCall('operations/movefile', {
     srcFs,
     srcRemote,
     dstFs,
     dstRemote,
+    _async: true,
+    _config: {
+      ServerSideAcrossConfigs: true,
+      ..._config,
+    },
+    ...restOptions,
   })
 }
 
 export async function deleteFile(fs: string, remote: string): Promise<void> {
   await rcCall('operations/deletefile', { fs, remote })
+}
+
+export async function purge(fs: string, remote: string): Promise<void> {
+  await rcCall('operations/purge', { fs, remote })
+}
+
+export async function renameFile(fs: string, srcRemote: string, dstRemote: string, _options?: Record<string, any>): Promise<void> {
+  const { _config, ...restOptions } = _options || {}
+  await rcCall('operations/movefile', {
+    srcFs: fs,
+    srcRemote,
+    dstFs: fs,
+    dstRemote,
+    _config: {
+      ServerSideAcrossConfigs: true,
+      ..._config,
+    },
+    ...restOptions,
+  })
+}
+
+export async function renameDir(remoteName: string, srcPath: string, dstPath: string, _options?: Record<string, any>): Promise<void> {
+  const { _config, ...restOptions } = _options || {}
+  await rcCall('sync/move', {
+    srcFs: `${remoteName}:${srcPath}`,
+    dstFs: `${remoteName}:${dstPath}`,
+    _config: {
+      ServerSideAcrossConfigs: true,
+      ..._config,
+    },
+    ...restOptions,
+  })
 }
 
 export async function mkdir(fs: string, remote: string): Promise<void> {
@@ -200,15 +295,45 @@ export interface SyncResult {
 }
 
 export async function syncCopy(srcFs: string, dstFs: string, _options?: Record<string, any>): Promise<{ jobid: number }> {
-  return rcCall('sync/copy', { srcFs, dstFs, ..._options })
+  const { _config, ...restOptions } = _options || {}
+  return rcCall('sync/copy', {
+    srcFs,
+    dstFs,
+    _async: true,
+    _config: {
+      ServerSideAcrossConfigs: true,
+      ..._config,
+    },
+    ...restOptions,
+  })
 }
 
 export async function syncMove(srcFs: string, dstFs: string, _options?: Record<string, any>): Promise<{ jobid: number }> {
-  return rcCall('sync/move', { srcFs, dstFs, ..._options })
+  const { _config, ...restOptions } = _options || {}
+  return rcCall('sync/move', {
+    srcFs,
+    dstFs,
+    _async: true,
+    _config: {
+      ServerSideAcrossConfigs: true,
+      ..._config,
+    },
+    ...restOptions,
+  })
 }
 
 export async function syncSync(srcFs: string, dstFs: string, _options?: Record<string, any>): Promise<{ jobid: number }> {
-  return rcCall('sync/sync', { srcFs, dstFs, ..._options })
+  const { _config, ...restOptions } = _options || {}
+  return rcCall('sync/sync', {
+    srcFs,
+    dstFs,
+    _async: true,
+    _config: {
+      ServerSideAcrossConfigs: true,
+      ..._config,
+    },
+    ...restOptions,
+  })
 }
 
 // ============== Job Endpoints ==============
@@ -224,6 +349,38 @@ export async function getJobStatus(jobid: number): Promise<{
   success: boolean
 }> {
   return rcCall('job/status', { jobid })
+}
+
+export async function waitForJob(jobid: number, timeoutMs = 3600000): Promise<void> {
+  const start = Date.now()
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const status = await getJobStatus(jobid)
+      if (status.finished) {
+        if (!status.success) {
+          throw new Error(status.error || 'Operation failed')
+        }
+        return
+      }
+    } catch (err: any) {
+      if (err?.message && err.message.toLowerCase().includes('job not found')) {
+        // Job has finished and expired from memory
+        return
+      }
+      throw err
+    }
+    await new Promise(resolve => setTimeout(resolve, 500))
+  }
+  // If the job is still running after timeoutMs, don't crash the operation; let background polling track it
+  try {
+    const finalCheck = await getJobStatus(jobid)
+    if (!finalCheck.finished) {
+      return
+    }
+  } catch {
+    // Ignore error on final check
+  }
+  throw new Error('Operation timed out')
 }
 
 export async function getJobList(): Promise<{ jobids: number[] }> {
@@ -268,6 +425,7 @@ export async function setupGoogleDriveRemote(
   const params: Record<string, string> = {
     type: 'drive',
     scope: options.scope || 'drive',
+    server_side_across_configs: 'true',
   }
 
   if (options.client_id) params.client_id = options.client_id
@@ -278,12 +436,7 @@ export async function setupGoogleDriveRemote(
   await createRemote(remoteName, 'drive', params)
 }
 
-// Check if rclone RC is reachable
-export async function isRcloneRunning(): Promise<boolean> {
-  try {
-    await getVersion()
-    return true
-  } catch {
-    return false
-  }
+export async function getPublicLink(fs: string, remote: string): Promise<string> {
+  const result = await rcCall('operations/publiclink', { fs, remote })
+  return result.url
 }

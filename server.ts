@@ -4,6 +4,7 @@ import cors from "cors";
 import { spawn, execSync } from "child_process";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
+import { createProxyMiddleware } from "http-proxy-middleware";
 
 const app = express();
 const PORT = 3000;
@@ -31,8 +32,21 @@ const rcloneProcess = spawn(RCLONE_BIN, [
   "rcd",
   "--rc-no-auth",
   "--rc-addr=127.0.0.1:5572",
+  "--rc-serve",
   "--config",
   RCLONE_CONFIG_PATH,
+  "--server-side-across-configs",
+  "--drive-server-side-across-configs",
+  "--rc-job-expire-duration=2h",
+  "--rc-job-expire-interval=2m",
+  "--drive-chunk-size=64M",
+  "--drive-upload-cutoff=1000T",
+  "--transfers=8",
+  "--checkers=16",
+  "--buffer-size=64M",
+  "--drive-pacer-min-sleep=100ms",
+  "--drive-pacer-burst=100",
+  "--fast-list",
   "-vv" // Add double verbose to trace
 ]);
 
@@ -40,7 +54,31 @@ const logStream = fs.createWriteStream('rclone.log', {flags: 'a'});
 rcloneProcess.stdout.pipe(logStream);
 rcloneProcess.stderr.pipe(logStream);
 
-
+// Automatically ensure rclone RC has ServerSideAcrossConfigs enabled
+const initRcloneOptions = async () => {
+  for (let i = 0; i < 10; i++) {
+    try {
+      const res = await fetch("http://127.0.0.1:5572/options/set", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          main: {
+            ServerSideAcrossConfigs: true,
+            Transfers: 8,
+            Checkers: 16
+          }
+        })
+      });
+      if (res.ok) {
+        console.log("rclone ServerSideAcrossConfigs enabled in options");
+        break;
+      }
+    } catch {
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+};
+initRcloneOptions();
 
 rcloneProcess.on("error", (err) => {
   console.error("Failed to start rclone rcd:", err);
@@ -50,9 +88,48 @@ rcloneProcess.on("close", (code) => {
   console.log(`rclone rcd exited with code ${code}`);
 });
 
-// Basic proxy for rclone RC
+// High-speed directory cache for operations/list to make browsing instantaneous
+interface CacheEntry {
+  data: any;
+  status: number;
+  timestamp: number;
+}
+const listCache = new Map<string, CacheEntry>();
+
+app.post("/api/cache/clear", (req, res) => {
+  listCache.clear();
+  res.json({ status: "ok", message: "Server list cache cleared" });
+});
+
+// Basic proxy for rclone RC with smart caching & zero-latency navigation
 app.use("/api/rc", async (req, res) => {
-  const rcPath = req.url.replace(/^\//, ''); // Express sub-app routing strips /api/rc
+  const rcPath = req.url.replace(/^\//, '').split('?')[0]; // Express sub-app routing strips /api/rc
+  const isList = rcPath === 'operations/list';
+  const isRefresh = req.headers['x-refresh'] === 'true';
+  const cacheKey = isList ? JSON.stringify(req.body) : '';
+
+  // Return cached directory listing if within 25 seconds and not force refresh
+  if (isList && !isRefresh) {
+    const cached = listCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp < 25000)) {
+      return res.status(cached.status).json(cached.data);
+    }
+  }
+
+  // If mutation operation, invalidate directory cache
+  if ([
+    'operations/copyfile',
+    'operations/movefile',
+    'operations/deletefile',
+    'operations/purge',
+    'operations/mkdir',
+    'sync/copy',
+    'sync/move',
+    'sync/sync'
+  ].includes(rcPath)) {
+    listCache.clear();
+  }
+
   try {
     const rcUrl = `http://127.0.0.1:5572/${rcPath}`;
     const rcRes = await fetch(rcUrl, {
@@ -62,10 +139,45 @@ app.use("/api/rc", async (req, res) => {
     });
     
     const data = await rcRes.json();
+
+    if (isList && rcRes.ok) {
+      listCache.set(cacheKey, {
+        data,
+        status: rcRes.status,
+        timestamp: Date.now()
+      });
+    }
+
     res.status(rcRes.status).json(data);
   } catch (err: any) {
     res.status(500).json({ error: "Failed to proxy to rclone RC", details: err.message });
   }
+});
+
+// Proxy for streaming media natively from rclone rcd via HTTP
+app.use("/api/stream/:remote/*all", (req, res, next) => {
+  const remote = req.params.remote;
+  const remoteClean = remote.replace(/:$/, '');
+  const filePathArray = req.params.all || [];
+  const filePath = Array.isArray(filePathArray) ? filePathArray : [filePathArray];
+  
+  // Rclone expects exactly /[remote:]/path/to/file for streaming
+  // We need to ensure we encode the path segments properly but preserve slashes
+  const encodedPath = filePath.map((seg: any) => encodeURIComponent(seg)).join('/');
+  
+  createProxyMiddleware({
+    target: 'http://127.0.0.1:5572',
+    changeOrigin: true,
+    pathRewrite: (path, req) => {
+      return `/[` + remoteClean + `:]/` + encodedPath;
+    },
+    onProxyReq: (proxyReq, req) => {
+      // Forward range headers for video seeking
+      if (req.headers.range) {
+        proxyReq.setHeader('Range', req.headers.range);
+      }
+    }
+  })(req, res, next);
 });
 
 app.get("/api/health", (req, res) => {
@@ -202,6 +314,7 @@ app.post("/api/auth/new", async (req, res) => {
         parameters: {
           scope: 'drive',
           token: tokenStr,
+          server_side_across_configs: 'true',
           config_is_local: 'false'
         }
       })

@@ -77,11 +77,29 @@ export default function FileBrowser() {
   }
 
   const handleTransferSelected = () => {
+    if (!account) return
     if (selectedFiles.size === 0) {
       addToast('warning', 'No Selection', 'Please select files or folders to transfer')
       return
     }
-    dispatch({ type: 'SET_TRANSFER_MODAL', payload: true })
+    const firstSelectedId = Array.from(selectedFiles)[0]
+    const item = files.find(f => f.id === firstSelectedId)
+    const currentFolder = state.browserPath || 'root'
+    const itemPath = item ? (currentFolder === '/' || currentFolder === 'root' ? item.name : `${currentFolder.replace(/^\/+/, '')}/${item.name}`) : currentFolder
+    const isShared = Boolean(item?.sharedWithMe || (state as any).browserSection === 'shared-with-me' || currentFolder.startsWith('shared:'))
+    
+    dispatch({ 
+      type: 'SET_TRANSFER_MODAL', 
+      payload: {
+        sourceAccountId: account.id,
+        sourcePath: isShared ? `shared:${item?.name || itemPath}` : (item?.path || itemPath),
+        sourceType: item?.isFolder ? 'folder' : 'file',
+        isSharedWithMe: isShared,
+        sharedItem: item,
+        sourceFileId: item?.id,
+        parentSharedFolderId: currentFolder === 'root' || currentFolder === '/' || currentFolder === 'shared-root' ? undefined : currentFolder
+      } 
+    })
   }
 
   const sortedFiles = [...files].sort((a, b) => {
@@ -227,7 +245,7 @@ export default function FileBrowser() {
                       ? 'bg-indigo-500/10 border border-indigo-500/20'
                       : 'hover:bg-white/5 border border-transparent'
                   }`}
-                  onClick={() => file.isFolder ? navigateToFolder(file.id, file.name) : toggleFileSelection(file.id)}
+                  onClick={() => file.isFolder ? navigateToFolder(file.path, file.name) : toggleFileSelection(file.id)}
                 >
                   <div className="col-span-1">
                     <input
@@ -268,7 +286,7 @@ export default function FileBrowser() {
                       ? 'bg-indigo-500/10 border border-indigo-500/20'
                       : 'bg-slate-800/30 border border-transparent hover:border-slate-700/50'
                   }`}
-                  onClick={() => file.isFolder ? navigateToFolder(file.id, file.name) : toggleFileSelection(file.id)}
+                  onClick={() => file.isFolder ? navigateToFolder(file.path, file.name) : toggleFileSelection(file.id)}
                 >
                   <div className={`w-12 h-12 mx-auto mb-2 rounded-lg flex items-center justify-center ${
                     file.isFolder ? 'bg-indigo-500/20' : 'bg-slate-700/30'

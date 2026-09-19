@@ -1,6 +1,7 @@
-import { createContext, useContext, useReducer, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useReducer, useEffect, useRef, type ReactNode } from 'react'
 import type { DriveAccount, TransferJob, RcloneConfig, ToastMessage, ViewMode } from '../types'
 import { storage, getDefaultRcloneConfig } from '../services/storage'
+import { initializeTransfers, formatBytes } from '../services/rclone'
 
 interface AppState {
   accounts: DriveAccount[]
@@ -12,8 +13,20 @@ interface AppState {
   selectedAccountId: string | null
   authModalOpen: boolean
   transferModalOpen: boolean
+  transferConfig?: {
+    sourceAccountId?: string;
+    sourcePath?: string;
+    destAccountId?: string;
+    destPath?: string;
+    sourceType?: 'folder' | 'file' | 'root';
+    isSharedWithMe?: boolean;
+    sharedItem?: any;
+    parentSharedFolderId?: string;
+    sourceFileId?: string;
+  }
   browserAccountId: string | null
   browserPath: string
+  searchQuery: string
 }
 
 type Action =
@@ -31,8 +44,9 @@ type Action =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_SELECTED_ACCOUNT'; payload: string | null }
   | { type: 'SET_AUTH_MODAL'; payload: boolean }
-  | { type: 'SET_TRANSFER_MODAL'; payload: boolean }
+  | { type: 'SET_TRANSFER_MODAL'; payload: boolean | { sourceAccountId?: string; sourcePath?: string; destAccountId?: string; destPath?: string; sourceType?: 'folder' | 'file' | 'root'; isSharedWithMe?: boolean; sharedItem?: any; parentSharedFolderId?: string; sourceFileId?: string } }
   | { type: 'SET_BROWSER'; payload: { accountId: string | null; path: string } }
+  | { type: 'SET_SEARCH_QUERY'; payload: string }
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -75,9 +89,15 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_AUTH_MODAL':
       return { ...state, authModalOpen: action.payload }
     case 'SET_TRANSFER_MODAL':
-      return { ...state, transferModalOpen: action.payload }
+      if (typeof action.payload === 'boolean') {
+        return { ...state, transferModalOpen: action.payload, transferConfig: action.payload ? state.transferConfig : undefined }
+      } else {
+        return { ...state, transferModalOpen: true, transferConfig: action.payload }
+      }
     case 'SET_BROWSER':
       return { ...state, browserAccountId: action.payload.accountId, browserPath: action.payload.path }
+    case 'SET_SEARCH_QUERY':
+      return { ...state, searchQuery: action.payload }
     default:
       return state
   }
@@ -95,12 +115,13 @@ const initialState: AppState = {
   transferModalOpen: false,
   browserAccountId: null,
   browserPath: '/',
+  searchQuery: '',
 }
 
 interface AppContextType {
   state: AppState
   dispatch: React.Dispatch<Action>
-  addToast: (type: ToastMessage['type'], title: string, message: string) => void
+  addToast: (type: ToastMessage['type'], title: string, message: string, action?: ToastMessage['action']) => void
   setView: (view: ViewMode) => void
 }
 
@@ -111,6 +132,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Load initial data from localStorage
   useEffect(() => {
+    initializeTransfers()
+    
     const accounts = storage.getAccounts()
     const transfers = storage.getTransfers()
     const config = storage.getRcloneConfig()
@@ -120,9 +143,69 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_RCLONE_CONFIG', payload: config })
   }, [])
 
-  // Sync transfers to localStorage on changes
+  const prevTransfersRef = useRef<Map<string, { status: string; sourcePath: string; transferredBytes: number }>>(new Map())
+  const isInitialTransferLoadRef = useRef(true)
+
+  // Poll transfers from localStorage every second to keep UI in sync with background tasks
   useEffect(() => {
-    storage.saveTransfers(state.transfers)
+    const interval = setInterval(() => {
+      const latestTransfers = storage.getTransfers()
+
+      // If initial load, prime the ref with existing transfers without spamming notifications
+      if (isInitialTransferLoadRef.current) {
+        latestTransfers.forEach(t => {
+          prevTransfersRef.current.set(t.id, {
+            status: t.status,
+            sourcePath: t.sourcePath,
+            transferredBytes: t.transferredBytes || 0
+          })
+        })
+        isInitialTransferLoadRef.current = false
+      } else {
+        // Detect transitions for background toast notifications
+        latestTransfers.forEach(t => {
+          const prev = prevTransfersRef.current.get(t.id)
+          if (prev) {
+            const wasActive = prev.status === 'running' || prev.status === 'queued'
+            if (wasActive && t.status === 'completed') {
+              const fileName = t.sourcePath?.split('/').pop()?.replace(/^shared:/, '') || 'File transfer'
+              addToast(
+                'success',
+                'Transfer Completed! 🎉',
+                `"${fileName}" has completed successfully (${formatBytes(t.transferredBytes || t.totalBytes || 0)} transferred).`,
+                {
+                  label: 'View in Transfers',
+                  onClick: () => dispatch({ type: 'SET_VIEW', payload: 'transfers' })
+                }
+              )
+            } else if (wasActive && t.status === 'error') {
+              const fileName = t.sourcePath?.split('/').pop()?.replace(/^shared:/, '') || 'File transfer'
+              addToast(
+                'error',
+                'Transfer Failed ❌',
+                `"${fileName}" encountered an error: ${t.error || 'Transfer was interrupted or failed'}.`,
+                {
+                  label: 'View Details',
+                  onClick: () => dispatch({ type: 'SET_VIEW', payload: 'transfers' })
+                }
+              )
+            }
+          }
+          // Update ref
+          prevTransfersRef.current.set(t.id, {
+            status: t.status,
+            sourcePath: t.sourcePath,
+            transferredBytes: t.transferredBytes || 0
+          })
+        })
+      }
+
+      // Only update if stringified versions differ to avoid infinite re-renders
+      if (JSON.stringify(latestTransfers) !== JSON.stringify(state.transfers)) {
+        dispatch({ type: 'SET_TRANSFERS', payload: latestTransfers })
+      }
+    }, 1000)
+    return () => clearInterval(interval)
   }, [state.transfers])
 
   // Sync accounts to localStorage
@@ -140,11 +223,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })
   }, [state.toasts])
 
-  const addToast = (type: ToastMessage['type'], title: string, message: string) => {
+  const addToast = (type: ToastMessage['type'], title: string, message: string, action?: ToastMessage['action']) => {
     const id = `toast-${Date.now()}-${Math.random()}`
     dispatch({
       type: 'ADD_TOAST',
-      payload: { id, type, title, message, duration: 5000 },
+      payload: { id, type, title, message, duration: 6000, action },
     })
   }
 

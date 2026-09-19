@@ -28,10 +28,13 @@ export interface DriveFile {
   isFolder: boolean
   icon: string
   path: string
+  sharedWithMe?: boolean
+  sharedBy?: string
 }
 
 export interface TransferJob {
   id: string
+  jobid?: number // The rclone async job ID
   sourceAccountId: string
   destAccountId: string
   sourcePath: string
@@ -51,6 +54,11 @@ export interface TransferJob {
   error: string | null
   rcloneCommand: string
   logs: TransferLog[]
+  transferMode?: 'with_folder' | 'contents_only' | 'file'
+  sourceType?: 'folder' | 'file' | 'root'
+  isSharedSource?: boolean
+  sourceFileId?: string
+  parentSharedFolderId?: string
 }
 
 export interface TransferLog {
@@ -82,6 +90,24 @@ export interface ToastMessage {
   title: string
   message: string
   duration: number
+  action?: {
+    label: string
+    onClick: () => void
+  }
 }
 
-export type ViewMode = 'home' | 'dashboard' | 'transfers' | 'settings' | 'browser'
+export type ViewMode = 'home' | 'dashboard' | 'shared' | 'transfers' | 'settings' | 'browser'
+
+export interface DriveClipboard {
+  operation: 'copy' | 'move'
+  sourceAccountId: string
+  sourceAccountName: string
+  items: {
+    id: string
+    path: string
+    name: string
+    isFolder: boolean
+    size?: number
+  }[]
+  copiedAt: number
+}

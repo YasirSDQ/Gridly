@@ -1,5 +1,5 @@
 // LocalStorage persistence service
-import type { DriveAccount, TransferJob, RcloneConfig } from '../types'
+import type { DriveAccount, TransferJob, RcloneConfig, DriveClipboard } from '../types'
 
 const KEYS = {
   ACCOUNTS: 'gridly_accounts',
@@ -7,6 +7,7 @@ const KEYS = {
   RCLONE_CONFIG: 'gridly_rclone_config',
   AUTH_STATE: 'gridly_auth_state',
   SETTINGS: 'gridly_settings',
+  CLIPBOARD: 'gridly_clipboard',
 }
 
 export const storage = {
@@ -100,6 +101,26 @@ export const storage = {
 
   saveAuthState(state: { isAuthenticated: boolean; lastLogin: number | null }): void {
     localStorage.setItem(KEYS.AUTH_STATE, JSON.stringify(state))
+  },
+
+  // Clipboard (Ctrl+C, Ctrl+X, Ctrl+V)
+  getClipboard(): DriveClipboard | null {
+    try {
+      const data = sessionStorage.getItem(KEYS.CLIPBOARD) || localStorage.getItem(KEYS.CLIPBOARD)
+      return data ? JSON.parse(data) : null
+    } catch {
+      return null
+    }
+  },
+
+  setClipboard(clipboard: DriveClipboard | null): void {
+    if (clipboard) {
+      sessionStorage.setItem(KEYS.CLIPBOARD, JSON.stringify(clipboard))
+      localStorage.setItem(KEYS.CLIPBOARD, JSON.stringify(clipboard))
+    } else {
+      sessionStorage.removeItem(KEYS.CLIPBOARD)
+      localStorage.removeItem(KEYS.CLIPBOARD)
+    }
   },
 
   // Clear all

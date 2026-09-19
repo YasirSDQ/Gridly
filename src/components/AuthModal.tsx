@@ -149,8 +149,9 @@ export default function AuthModal() {
       dispatch({ type: 'SET_AUTH_MODAL', payload: false })
       dispatch({ type: 'SET_VIEW', payload: 'dashboard' })
       
+      const newAccountId = generateId();
       dispatch({ type: 'ADD_ACCOUNT', payload: {
-        id: generateId(),
+        id: newAccountId,
         name: remoteName,
         email: `${remoteName}@drive.rclone`,
         accessToken: '',
@@ -166,6 +167,7 @@ export default function AuthModal() {
         status: 'connected',
         addedAt: Date.now()
       }})
+      dispatch({ type: 'SET_SELECTED_ACCOUNT', payload: newAccountId })
 
     } catch (err: any) {
       addToast('error', 'Connection Failed', err.message)

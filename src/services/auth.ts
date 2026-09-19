@@ -171,3 +171,22 @@ export function isValidRemoteName(name: string): boolean {
   // rclone remote names must be alphanumeric with underscores/hyphens
   return /^[a-zA-Z][a-zA-Z0-9_-]*$/.test(name)
 }
+
+export async function syncAccountStorage(accountId: string, remoteName: string): Promise<boolean> {
+  const accounts = storage.getAccounts()
+  const index = accounts.findIndex(a => a.id === accountId)
+  if (index === -1) return false
+  
+  try {
+    const about = await rcloneRC.getAbout(`${remoteName}:`)
+    if (about.used !== undefined) {
+      accounts[index].usedBytes = about.used || 0
+      accounts[index].totalBytes = about.total || Math.max(about.used * 2, 1)
+      storage.saveAccounts(accounts)
+      return true
+    }
+  } catch (error) {
+    console.warn('Background sync failed:', error)
+  }
+  return false
+}
